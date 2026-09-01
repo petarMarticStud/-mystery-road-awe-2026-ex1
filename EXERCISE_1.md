@@ -55,15 +55,15 @@ directly.
 
 **Tasks**
 
-- [ ] Design a module boundary you can justify, and implement it (e.g. data loading, shared state,
+- [x] Design a module boundary you can justify, and implement it (e.g. data loading, shared state,
       one module per view's rendering, `localStorage` helpers, small formatting/lookup utilities,
       and an entry-point module that wires up navigation and event listeners on startup).
-- [ ] Update `index.html` to load your entry point with `<script type="module" src="...">` instead
+- [x] Update `index.html` to load your entry point with `<script type="module" src="...">` instead
       of the current plain `<script src="app.js">`.
-- [ ] Do this as a **pure refactor first**: the app must behave identically before and after (bugs
+- [x] Do this as a **pure refactor first**: the app must behave identically before and after (bugs
       and all — you are not fixing anything yet in this demo). Re-run the app after every few
       changes and confirm nothing new broke.
-- [ ] Decide deliberately, function by function, what needs to be exported and what can stay
+- [x] Decide deliberately, function by function, what needs to be exported and what can stay
       private to its module. Not everything needs to be public.
 
 **Questions** (depend on the tasks above)
