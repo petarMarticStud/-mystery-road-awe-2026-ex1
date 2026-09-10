@@ -1,7 +1,11 @@
 import { state } from "./modules/state.js";
 import { loadBookmarks, loadNotes, loadNoteAsync } from "./modules/storage.js";
 import { loadAllData } from "./modules/data.js";
-import { setNavigator, renderDashboard, populateAllDropdowns, renderEvidenceList, handleEvidenceClick, applyStoredBookmarkFlags, sortEvidence, clearFilters, handleSearchInput, handleDetailClick, switchPeopleTab, renderPeople, renderLocations, handlePeopleClick, renderTimeline, handleTimelineClick, handleModalClick, renderWorkspace, saveHypothesis, handleWorkspaceClick } from "./modules/views.js";
+import { setNavigator, renderDashboard, populateAllDropdowns, 
+  renderEvidenceList, handleEvidenceClick, applyStoredBookmarkFlags, sortEvidence, 
+  clearFilters, handleSearchInput, handleDetailClick, switchPeopleTab, renderPeople, 
+  renderLocations, handlePeopleClick, renderTimeline, handleTimelineClick, 
+  handleModalClick, renderWorkspace, saveHypothesis, handleWorkspaceClick } from "./modules/views.js";
 
 function navigateTo(viewName) { window.location.hash = viewName; }
 function handleHashChange() {

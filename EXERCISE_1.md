@@ -68,17 +68,25 @@ directly.
 
 **Questions** (depend on the tasks above)
 
-- [ ] What is the difference between a classic `<script>` and a `<script type="module">`? Name at
+- [x] What is the difference between a classic `<script>` and a `<script type="module">`? Name at
       least two behavioral differences that are relevant to this app.
-- [ ] Before your refactor, `allEvidence` was a global `var`, readable and writable from anywhere in
-      `app.js`. After splitting into modules, what has to happen for a different module to read or
-      change that value? What error do you get if you forget, and why is that error actually
-      useful?
-- [ ] What's the difference between a named export and a default export? Point to one place in your
-      refactor where you chose one over the other, and explain why.
-- [ ] Why won't `type="module"` scripts run at all if you open `index.html` directly from disk
+      # A: module on its own lets the vars be global, mit "module" ensteht ein Module-scope.
+      # odules have to be imported exported to exchange data.
+
+
+- [x] Before your refactor, `allEvidence` was a global `var`, readable and writable from anywhere in `app.js`. After splitting into modules, what has to happen for a different module to read or change that value? What error do you get if you forget, and why is that error actually useful?
+# A: After splitting into modules, it is not possible anymore to use the var without an export and import of the var. Without an export/import of allEvidence an ReferenceError would occur. 
+
+
+
+- [x] What's the difference between a named export and a default export? Point to one place in your refactor where you chose one over the other, and explain why.
+ # A: Named exports when you have similar functions but you require them in other modules. A default export is required hen you want to exort a single value like a class or object(name is choseable) 
+
+
+- [x] Why won't `type="module"` scripts run at all if you open `index.html` directly from disk
       (`file://...`) instead of through a local HTTP server? (You already need a server for
       `fetch()` — is this the same reason, a different one, or both?)
+      # A: It will get blocked by the browser because the origin gets checked from the local disk "file://..". but it needs a http-otigin.  So a local server is needed in order to transform the origin from localhost and overcome the cors rules.
 
 ---
 
