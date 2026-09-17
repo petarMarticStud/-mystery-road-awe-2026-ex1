@@ -146,7 +146,7 @@ flaky or timing-sensitive to reproduce. The point is that you can't explain the 
 - [x] Form a hypothesis for the root cause, expressed in terms of the async operation involved (what
       was supposed to happen once it resolved, and what actually happened instead), and confirm it.
       # A: My hypothesis was that the success callback stored the loaded evidence data but never changed the loading state from `true` to `false`. The view was therefore still treated as loading even after the Promise had resolved.
-      
+
 - [x] Fix it, and verify the fix actually addresses the async handling rather than papering over the
       symptom (e.g. don't just add a delay or a retry if the real issue is a missing state update).
 
@@ -173,15 +173,15 @@ testing session. Find a bug that produces **no visible change in the UI** — on
 
 **Tasks**
 
-- [ ] Reproduce the bug and capture the exact console output.
-- [ ] Trace it back to the line(s) of code responsible.
-- [ ] Fix it, and confirm the console is clean for that scenario afterward.
+- [x] Reproduce the bug and capture the exact console output.
+- [x] Trace it back to the line(s) of code responsible.
+- [x] Fix it, and confirm the console is clean for that scenario afterward.
 
 **Questions** (depend on the task above)
 
-- [ ] How did you notice this bug in the first place, given that nothing looked broken? Why is
+- [x] How did you notice this bug in the first place, given that nothing looked broken? Why is
       "nothing looks broken" not the same as "nothing is broken"?
-
+      # I noticed the bug because I had DevTools open while testing the navigation. Nothing looked broken in the UI, but the Console showed an unnecessary debug message. 
 ---
 
 ## Demo 5 — Bug hunt: full walkthrough & reflection

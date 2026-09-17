@@ -22,7 +22,7 @@ function handleHashChange() {
 function setupEventListeners() {
   window.addEventListener("hashchange", handleHashChange);
   document.addEventListener("click", event => {
-    const navigation = event.target.closest("[data-view]"); if (navigation) { console.log("nav clicked:", navigation.dataset.view); navigateTo(navigation.dataset.view); return; }
+    const navigation = event.target.closest("[data-view]"); if (navigation) {navigateTo(navigation.dataset.view); return; }
     const shortcut = event.target.closest("[data-navigate]"); if (shortcut) { navigateTo(shortcut.dataset.navigate); return; }
     const tab = event.target.closest("[data-people-tab]"); if (tab) { switchPeopleTab(tab.dataset.peopleTab); return; }
     if (event.target.closest("[data-save-hypothesis]")) { saveHypothesis(); return; }
