@@ -13,7 +13,7 @@ export function loadAllData(onCoreData, onEvidence, onTimeline) {
     return fetch("data/locations.json").then(res => res.json());
   }).then(locationsJson => {
     state.allLocations = locationsJson; hideLoadingStep(); onCoreData();
-    fetch("data/evidence.json").then(res => res.json()).then(data => { state.allEvidence = data; state.filteredEvidence = state.allEvidence; onEvidence(); }).catch(err => { console.error("Failed to load evidence.json", err); alert("Evidence could not be loaded. Some views may be incomplete."); });
+    fetch("data/evidence.json").then(res => res.json()).then(data => { state.allEvidence = data; state.filteredEvidence = [...state.allEvidence]; onEvidence(); }).catch(err => { console.error("Failed to load evidence.json", err); alert("Evidence could not be loaded. Some views may be incomplete."); });
     fetch("data/timeline.json").then(res => res.json()).then(data => { state.allTimeline = data; onTimeline(); }).catch(err => console.log("timeline load error", err)).finally(hideLoadingStep);
   });
 }

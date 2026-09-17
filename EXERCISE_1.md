@@ -78,20 +78,17 @@ directly.
 # A: After splitting into modules, it is not possible anymore to use the var without an export and import of the var. Without an export/import of allEvidence an ReferenceError would occur. 
 
 
-
 - [x] What's the difference between a named export and a default export? Point to one place in your refactor where you chose one over the other, and explain why.
  # A: Named exports when you have similar functions but you require them in other modules. A default export is required hen you want to exort a single value like a class or object(name is choseable) 
 
 
-- [x] Why won't `type="module"` scripts run at all if you open `index.html` directly from disk
-      (`file://...`) instead of through a local HTTP server? (You already need a server for
-      `fetch()` — is this the same reason, a different one, or both?)
-      # A: It will get blocked by the browser because the origin gets checked from the local disk "file://..". but it needs a http-otigin.  So a local server is needed in order to transform the origin from localhost and overcome the cors rules.
+- [x] Why won't `type="module"` scripts run at all if you open `index.html` directly from disk (`file://...`) instead of through a local HTTP server? (You already need a server for `fetch()` — is this the same reason, a different one, or both?)
+# A: It will get blocked by the browser because the origin gets checked from the local disk "file://..". but it needs a http-otigin.  So a local server is needed in order to transform the origin from localhost and overcome the cors rules.
 
 ---
+-----------------------------------
 
 ## Demo 2 — Bug hunt: a mutation/reference bug
-
 The app has several independent defects hidden across its views. Find them the way you would on a real project: by using the app thoroughly,
 reading error output, debugging and reasoning about the code once you have a reproducible symptom.
 
@@ -101,16 +98,37 @@ to be independent turn out to be linked).
 
 **Tasks**
 
-- [ ] Reproduce the bug reliably and write down the exact steps.
-- [ ] Form a hypothesis for the root cause and confirm it (not just patch the symptom).
-- [ ] Fix it, and verify the fix doesn't break anything else nearby.
+- [x] Reproduce the bug reliably and write down the exact steps.
+
+# A: 1. I started the project with `npx serve .` and launched the VS Code debugger.
+  2. I set a breakpoint in `modules/data.js` after the evidence data was loaded.
+  3. After pressing F10, `state.allEvidence` contained 18 evidence items.
+  4. I evaluated `state.filteredEvidence === state.allEvidence` in the Debug Console.
+  5. The result was `true`.
+  6. I sorted `state.filteredEvidence` alphabetically.
+  7. The order of `state.allEvidence` changed too.
+
+
+- [x] Form a hypothesis for the root cause and confirm it (not just patch the symptom).
+ # A: My hypothesis was that `state.filteredEvidence = state.allEvidence` does not create a new array. Instead, both variables reference the same array. Because `.sort()` mutates an array in place, sorting `filteredEvidence` also sorts `allEvidence`. 
+ 
+ I confirmed this with `state.filteredEvidence === state.allEvidence`, which returned
+  `true`.
+
+- [x] Fix it, and verify the fix doesn't break anything else nearby.
+ # A:  I changed "state.filteredEvidence = state.allEvidence" to "state.filteredEvidence = [...state.allEvidence];"
+-------- --------
+
 
 **Questions** (depend on the task above)
 
-- [ ] Explain — in your own words — the difference between a *reference* and a *copy* in
+- [x] Explain — in your own words — the difference between a *reference* and a *copy* in
       JavaScript, and how that distinction explains what you observed.
-- [ ] Walk through the exact user actions and system state that trigger the bug. Could you have
-      found it by reading the code top-to-bottom without running it? Why or why not?
+      # A: A reference means that two variables point to the same object or array in memory. Changing the array through one variable also changes it for the other variable. A copy is a new array.
+
+
+- [x] Walk through the exact user actions and system state that trigger the bug. Could you have found it by reading the code top-to-bottom without running it? Why or why not?
+# A: The line state.filteredEvidence = state.allEvidence` made both state properties reference the same array. Sorting filteredEvidence then changed the order of allEvidence as well. I needed the debugger to confirm that both variables really referenced the same array at runtime
 
 ---
 
