@@ -130,7 +130,7 @@ to be independent turn out to be linked).
 - [x] Walk through the exact user actions and system state that trigger the bug. Could you have found it by reading the code top-to-bottom without running it? Why or why not?
 # A: The line state.filteredEvidence = state.allEvidence` made both state properties reference the same array. Sorting filteredEvidence then changed the order of allEvidence as well. I needed the debugger to confirm that both variables really referenced the same array at runtime
 
----
+------------------------------------------
 
 ## Demo 3 — Bug hunt: an asynchronous/Promise-handling bug
 
@@ -150,11 +150,18 @@ flaky or timing-sensitive to reproduce. The point is that you can't explain the 
 
 **Questions** (depend on the task above)
 
-- [ ] Explain the async operation this bug revolves around: what does it fetch/return, and at what
-      point in its lifecycle (before it starts, while pending, on success, on failure) does the bug
-      actually happen? How did you confirm that, rather than just guessing?
+- [x] Explain the async operation this bug revolves around: what does it fetch/return, and at what point in its lifecycle (before it starts, while pending, on success, on failure) does the bug actually happen? How did you confirm that, rather than just guessing?
+# A:
+The async operation fetches data/evidence.json and returns a Promise that resolves
+with the evidence data. The bug happens after the Promise succeeds, not while it is
+pending and not on failure.
 
----
+I confirmed this with a breakpoint after the Promise resolved. In the Debug Console,
+`state.allEvidence.length` returned `18`, while `state.evidenceViewLoading` returned
+`true`. After setting `state.evidenceViewLoading = false` before calling `onEvidence()`,
+the Evidence view rendered correctly.
+
+---------------------------
 
 ## Demo 4 — Bug hunt: a silent bug
 
