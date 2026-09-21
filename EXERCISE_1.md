@@ -38,7 +38,7 @@ your fix works.
 | 6 | Use the JavaScript debugger | ☐ |
 | 7 | DevTools tour (Console/Network/Application/Elements) | ☐ |
 | 8 | Clean coding: globals, `var`/`let`/`const`, code smells | ☐ |
-| 9 | Refactor nested Promises to `async`/`await` | ◐ |
+| 9 | Refactor nested Promises to `async`/`await` | ☐ |
 | 10 | Refactor to arrow functions | ☐ |
 
 A demo only counts as "Ready" once **every** task and question checkbox inside it (below) is
@@ -407,108 +407,21 @@ prevent deliberate global writes.
 
 **Questions** (depend on the tasks above)
 
-- [x] Explain, in your own words, why the nested `.then()` chain you sketched is harder to reason
+- [ ] Explain, in your own words, why the nested `.then()` chain you sketched is harder to reason
       about than the `async`/`await` version — even though they run identically.
-- [x] What does the `await` keyword actually do to the execution of the `async` function it's
+- [ ] What does the `await` keyword actually do to the execution of the `async` function it's
       inside? What is the rest of the *program* doing while that function is "waiting"?
-- [x] An `async` function always returns a Promise, even if the code inside it does
+- [ ] An `async` function always returns a Promise, even if the code inside it does
       `return someValue;` for a plain value. Prove you understand this: what do you get if you call
       `.then()` on the result of your refactored function, and log it?
-- [x] What is the `async`/`await` equivalent of a `.catch()`? What happens at runtime if you forget
+- [ ] What is the `async`/`await` equivalent of a `.catch()`? What happens at runtime if you forget
       it and the `await`ed operation rejects?
-- [x] Is `async`/`await` code *faster* than the equivalent `.then()` chain? Explain precisely what
+- [ ] Is `async`/`await` code *faster* than the equivalent `.then()` chain? Explain precisely what
       does and doesn't change about execution when you do this kind of refactor.
-- [x] Deliberately break your own refactor by removing one `await` you just added (leaving the
+- [ ] Deliberately break your own refactor by removing one `await` you just added (leaving the
       function still `async`). What breaks, and how does that relate to a category of bug you may
       have already dealt with in Demos 2–5 (a Promise being treated as if it were already-resolved
       data)?
-
-### Demo 9 answers and implemented changes
-
-**Shape before the refactor.** The deepest chain was in `loadAllData()` in
-`modules/data.js`. It contained an outer sequence for the three core files, with
-inner `.then()` callbacks that converted some `Response` objects to JSON. The
-dependency order was:
-
-```text
-fetch case.json → parse JSON → store case data
-    → fetch people.json → parse JSON → store people
-        → fetch locations.json → parse JSON → store locations
-            → update the core UI
-                → start evidence.json and timeline.json independently
-```
-
-The core requests therefore ran sequentially: the people request could only start
-after the case request and parsing succeeded, and locations could only start after
-people succeeded. After the core data was ready, evidence and timeline started
-independently, as they did before the refactor.
-
-**Implementation.** `loadAllData()` is now `async` and awaits `case.json`,
-`people.json`, and `locations.json` in the same order. Evidence and timeline were
-extracted into `loadEvidenceData()` and `loadTimelineData()`. Both use `await`;
-their previous error behavior is preserved with `try`/`catch`, and timeline still
-calls `hideLoadingStep()` from `finally`. The calls to these two helpers are
-deliberately not awaited, preserving their previous independent loading behavior.
-`initApp()` and the delayed evidence search were also converted to `async`/`await`.
-
-**Why `await` is easier to follow.** The old code mixed the main sequence with
-nested callbacks and `return` statements. A reader had to match each callback to
-the Promise that created it and check whether a nested Promise was returned. The
-new version expresses the same sequence from top to bottom. Intermediate values
-have names such as `caseResponse`, and `try`/`catch` makes the error boundary
-visible around the operation it protects.
-
-**What `await` does.** `await` suspends the rest of its containing `async` function
-until the Promise settles. It does not block the JavaScript thread or the whole
-browser. While a fetch is pending, the browser can process input, render frames,
-run other ready tasks, and receive network data. When the Promise fulfills, the
-function continues in a later microtask. If it rejects, `await` throws that reason
-at the suspended line.
-
-**Return value of an `async` function.** An `async` function always returns a
-Promise. A plain `return value` becomes a fulfilled Promise containing `value`; a
-thrown error becomes a rejected Promise. For example:
-
-```js
-async function example() {
-  return "ready";
-}
-
-example().then(value => console.log(value)); // logs "ready"
-```
-
-Likewise, calling `.then()` on `loadAllData(...)` registers a callback that runs
-after its awaited core-loading work completes. The callback receives `undefined`
-because `loadAllData()` has no explicit return value.
-
-**Error handling.** `try`/`catch` is the direct structured equivalent of a Promise
-`.catch()`, and `finally` corresponds to `.finally()`. If an awaited Promise rejects
-without a matching `catch`, the `async` function stops and its returned Promise is
-rejected. If its caller also fails to handle that rejection, the browser reports an
-unhandled Promise rejection.
-
-**Performance.** `async`/`await` is syntax over Promises; this refactor by itself is
-not faster. The same requests start in the same order and wait for the same network
-and JSON work. Performance would change if the dependency structure changed, for
-example by using `Promise.all()` for independent requests. That is intentionally
-outside this refactor.
-
-**Removed-`await` experiment.** Temporarily changing
-`const caseResponse = await fetch(...)` to `const caseResponse = fetch(...)` makes
-`caseResponse` a Promise rather than a `Response`. The next call to
-`caseResponse.json()` then throws `TypeError: caseResponse.json is not a function`.
-The `await` was restored after observing the issue. This is the same bug category
-as treating future asynchronous data as though its final value were already
-available.
-
-**Manual debugger verification still required.** Set a breakpoint on the first
-`fetch` line inside `loadAllData()`, reload, and use **Step over** through the three
-core requests. In the Call Stack, the first entry comes from the `DOMContentLoaded`
-event through `initApp`; after each `await`, execution resumes asynchronously in
-`loadAllData`. Confirm in the Network panel or with breakpoints that the order is
-`case.json`, `people.json`, `locations.json`, followed by independently started
-`evidence.json` and `timeline.json`. Then tick the remaining debugger checkbox and
-change the Demo 9 overview symbol from `◐` to `☑`.
 
 ---
 
@@ -516,12 +429,12 @@ change the Demo 9 overview symbol from `◐` to `☑`.
 
 **Tasks**
 
-- [ ] Choose at least two functions currently written as `function name(...) { ... }` or
+- [x] Choose at least two functions currently written as `function name(...) { ... }` or
       `function(...) { ... }`, and rewrite them as arrow functions — pick ones that are actually
       good candidates.
-- [ ] Convert at least one anonymous `function(e) { ... }` callback passed to `addEventListener`
+- [x] Convert at least one anonymous `function(e) { ... }` callback passed to `addEventListener`
       into an arrow function.
-- [ ] Identify **one** function you deliberately did *not* convert (or would refuse to, if asked),
+- [x] Identify **one** function you deliberately did *not* convert (or would refuse to, if asked),
       and be ready to explain why it would be unsafe or incorrect as an arrow function.
 
 **Questions** (depend on the tasks above)

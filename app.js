@@ -51,7 +51,10 @@ function setupEventListeners() {
   ["filterType", "filterPerson", "filterLocation", "filterStatus", "filterRelevance"].forEach(id => document.getElementById(id).addEventListener("change", renderEvidenceList));
   document.getElementById("sortEvidence").addEventListener("change", sortEvidence); document.getElementById("clearFiltersBtn").addEventListener("click", clearFilters);
   ["timelineOrder", "timelinePersonFilter", "timelineLocationFilter", "timelineTypeFilter"].forEach(id => document.getElementById(id).addEventListener("change", renderTimeline));
-  document.getElementById("hypConfidence").addEventListener("input", event => { document.getElementById("hypConfidenceValue").textContent = event.target.value; });
+document.getElementById("hypConfidence").addEventListener("input", event => {document
+      .getElementById("hypConfidenceValue")
+      .textContent = event.target.value;
+  });
 }
 async function initApp() {
   loadBookmarks(); loadNotes(); setNavigator(navigateTo); setupEventListeners();
