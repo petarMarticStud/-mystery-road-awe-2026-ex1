@@ -283,27 +283,108 @@ A guided tour, so you know where things live before you need them.
 
 **Tasks**
 
-- [ ] List every top-level `var` at the top of the original `app.js`. For at least three of them,
+- [x] List every top-level `var` at the top of the original `app.js`. For at least three of them,
       explain what could go wrong if two unrelated pieces of code both tried to use a variable with
       that name — and how your module split from Demo 1 already prevents (or doesn't yet prevent)
       that.
-- [ ] Go through the codebase and replace `var` with `const` or `let` everywhere it's declared,
+- [x] Go through the codebase and replace `var` with `const` or `let` everywhere it's declared,
       deciding `const` vs. `let` deliberately for each one.
-- [ ] Identify at least two more "code smells" anywhere in the app, beyond the globals above. Fix
+- [x] Identify at least two more "code smells" anywhere in the app, beyond the globals above. Fix
       them, and explain why they were bad and how your fix addresses that.
 
 **Questions** (depend on the tasks above)
 
-- [ ] What is the difference between `var`, `let`, and `const` in terms of scope and reassignment?
+- [x] What is the difference between `var`, `let`, and `const` in terms of scope and reassignment?
       Give a concrete example — from this codebase or a hypothetical grounded in a pattern you saw
       — of a bug that `var`'s scoping rules make *possible* and `let` would prevent.
-- [ ] What is an "accidental global," and how does non-strict-mode JavaScript allow it to happen by
+
+- [x] What is an "accidental global," and how does non-strict-mode JavaScript allow it to happen by
       simply forgetting a keyword? Now that your code runs as ES modules (which are always strict
       mode), what happens instead if you make that same mistake?
-- [ ] "The code technically works" and "the code is clean" are not the same bar. Give one concrete
+
+
+- [x] "The code technically works" and "the code is clean" are not the same bar. Give one concrete
       example from this app of something that worked correctly but was still worth refactoring —
       and explain what real cost the messy version has (bug risk, onboarding time, review
       difficulty...).
+
+
+
+### Demo 8 answers and implemented changes
+
+**Original globals.**
+Demo 1 module split. All 18 top-level `var` declarations at the top of `app.js` were:
+
+- `allEvidence`, `filteredEvidence`, `selectedEvidence`, `bookmarks`, `currentPage`
+- `allPeople`, `allLocations`, `allTimeline`, `caseData`
+- `currentPeopleTab`, `loadingStepsRemaining`, `evidenceViewLoading`, `viewRendered`
+- `notesStore`, `modalCloseListenerCount`
+- `STORAGE_KEY_BOOKMARKS`, `STORAGE_KEY_NOTES`, `STORAGE_KEY_HYPOTHESIS`
+
+In the original classic script, top-level `var` bindings shared the browser global
+scope. Another classic script could redeclare or overwrite the same names:
+
+| Name | Concrete collision risk |
+| --- | --- |
+| `bookmarks` | An unrelated bookmarking widget could replace evidence IDs with URLs, breaking the investigator's saved list. |
+| `currentPage` | A pagination widget could assign a number, breaking checks such as `currentPage === "evidence"`. |
+| `notesStore` | Another feature could replace the notes object and cause notes to disappear or be saved under incorrect IDs. |
+| `loadingStepsRemaining` | Another loader could decrement the same counter and hide our overlay too soon. |
+
+Demo 1 moved these values into the explicitly imported `state` object and the
+storage keys into `STORAGE_KEYS`. Module-local names do not become properties of
+`window`, so unrelated modules can use the same local names safely. However,
+modules that import `state` still share a mutable object and can overwrite each
+other's properties. Modules prevent implicit name collisions, not all shared-state
+bugs; `const state` does not freeze that object.
+
+**Declaration audit.** The module split already removed every `var` declaration
+from the application's JavaScript. No additional `var` replacements were needed.
+Use `const` for bindings that are never reassigned: imports, DOM references,
+computed results, callbacks, `state`, and `STORAGE_KEYS`. Mutating an object's
+properties or an array's contents does not reassign its binding. The three remaining
+`let` declarations in `modules/views.js` are deliberate:
+
+- `navigate` is replaced by `setNavigator(fn)`.
+- `html` in `renderDashboard` is extended with `+=`.
+- `modal` in `openEvidenceModal` is reassigned when no existing element is found.
+
+The routing refactor also replaces the reassigned `hash` local with two `const`
+bindings, `requestedView` and the validated `viewName`.
+
+**Two additional smells fixed.**
+
+1. Routing repeated both the valid view names and the render/cache logic in a long,
+   compressed conditional chain. `app.js` now uses a `viewRenderers` map for route
+   validation and renderer lookup, with one shared cache check. The people renderer
+   still renders both panels, unknown routes still fall back to the dashboard, and
+   the workspace still refreshes on every visit. Expanded statements make the flow
+   easier to review. The old version worked, but adding a route meant keeping
+   multiple lists and repeated branches consistent, increasing review time and the
+   chance of forgetting a render or cache update.
+2. `modalCloseListenerCount` was misleading debug state: opening a modal incremented
+   it despite not adding any close listener. Closing the modal did not decrement it.
+   Removed the property, increment, and log. Click handling still uses the existing
+   delegated document listener. The counter made working modal code harder to
+   understand and could lead someone to investigate a nonexistent listener leak.
+
+**Scope and reassignment.**
+
+| Declaration | Scope | Reassignment | Before declaration executes |
+| --- | --- | --- | --- |
+| `var` | Function scope; global in a top-level classic script, module scope in a module | Allowed; same-scope redeclaration allowed | Binding initialized to `undefined` |
+| `let` | Block scope (also module scope at module top level) | Allowed; same-scope redeclaration rejected | Temporal dead zone: access throws `ReferenceError` |
+| `const` | Block scope (also module scope at module top level) | Reassignment and same-scope redeclaration rejected | Temporal dead zone: access throws `ReferenceError` |
+
+
+
+**Accidental globals.** In non-strict code, assigning `noteText = "Check E01"`
+without declaring `noteText` (and with no existing binding of that name) creates a
+property on the global object. A typo or forgotten keyword can silently pollute
+shared state. `index.html` loads `app.js` with `type="module"`; ES modules are
+always strict, so the same undeclared assignment throws `ReferenceError` instead.
+Explicitly assigning `window.noteText` is still possible; strict mode does not
+prevent deliberate global writes.
 
 ---
 

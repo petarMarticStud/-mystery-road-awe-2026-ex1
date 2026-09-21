@@ -7,17 +7,36 @@ import { setNavigator, renderDashboard, populateAllDropdowns,
   renderLocations, handlePeopleClick, renderTimeline, handleTimelineClick, 
   handleModalClick, renderWorkspace, saveHypothesis, handleWorkspaceClick } from "./modules/views.js";
 
+const viewRenderers = new Map([
+  ["dashboard", renderDashboard],
+  ["evidence", renderEvidenceList],
+  ["people", () => {
+    renderPeople();
+    renderLocations();
+  }],
+  ["timeline", renderTimeline],
+  ["workspace", renderWorkspace]
+]);
+
 function navigateTo(viewName) { window.location.hash = viewName; }
 function handleHashChange() {
-  let hash = window.location.hash.replace("#", ""); const validViews = ["dashboard", "evidence", "people", "timeline", "workspace"];
-  if (validViews.indexOf(hash) === -1) hash = "dashboard"; state.currentPage = hash;
-  document.querySelectorAll(".view").forEach(section => section.classList.remove("active")); document.getElementById("view-" + hash).classList.add("active");
-  document.querySelectorAll(".nav-btn").forEach(button => button.classList.toggle("active", button.dataset.view === hash));
-  if (hash === "dashboard" && !state.viewRendered.dashboard) { renderDashboard(); state.viewRendered.dashboard = true; }
-  else if (hash === "evidence" && !state.viewRendered.evidence) { renderEvidenceList(); state.viewRendered.evidence = true; }
-  else if (hash === "people" && !state.viewRendered.people) { renderPeople(); renderLocations(); state.viewRendered.people = true; }
-  else if (hash === "timeline" && !state.viewRendered.timeline) { renderTimeline(); state.viewRendered.timeline = true; }
-  else if (hash === "workspace") renderWorkspace();
+  const requestedView = window.location.hash.replace("#", "");
+  const viewName = viewRenderers.has(requestedView) ? requestedView : "dashboard";
+  state.currentPage = viewName;
+
+  document.querySelectorAll(".view").forEach(section => section.classList.remove("active"));
+  document.getElementById("view-" + viewName).classList.add("active");
+  document.querySelectorAll(".nav-btn").forEach(button => {
+    button.classList.toggle("active", button.dataset.view === viewName);
+  });
+
+  // Workspace data can change elsewhere, so refresh it on every visit.
+  if (viewName === "workspace") {
+    renderWorkspace();
+  } else if (!state.viewRendered[viewName]) {
+    viewRenderers.get(viewName)();
+    state.viewRendered[viewName] = true;
+  }
 }
 function setupEventListeners() {
   window.addEventListener("hashchange", handleHashChange);
