@@ -53,12 +53,14 @@ function setupEventListeners() {
   ["timelineOrder", "timelinePersonFilter", "timelineLocationFilter", "timelineTypeFilter"].forEach(id => document.getElementById(id).addEventListener("change", renderTimeline));
   document.getElementById("hypConfidence").addEventListener("input", event => { document.getElementById("hypConfidenceValue").textContent = event.target.value; });
 }
-function initApp() {
+async function initApp() {
   loadBookmarks(); loadNotes(); setNavigator(navigateTo); setupEventListeners();
-  loadAllData(
+  await loadAllData(
     () => { renderDashboard(); populateAllDropdowns(); },
     () => { applyStoredBookmarkFlags(); renderDashboard(); populateAllDropdowns(); if (state.currentPage === "evidence") renderEvidenceList(); },
     () => { renderDashboard(); if (state.currentPage === "timeline") renderTimeline(); populateAllDropdowns(); }
-  ).then(() => { handleHashChange(); console.log("First note preview:", loadNoteAsync("E01")); });
+  );
+  handleHashChange();
+  console.log("First note preview:", await loadNoteAsync("E01"));
 }
 window.addEventListener("DOMContentLoaded", initApp);

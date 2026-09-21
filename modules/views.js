@@ -47,7 +47,11 @@ export function toggleBookmark(id) { const evidence = findEvidenceById(id); if (
 export function applyStoredBookmarkFlags() { state.allEvidence.forEach(item => { item.bookmarked = state.bookmarks.indexOf(item.id) !== -1; }); }
 export function sortEvidence() { const sort = document.getElementById("sortEvidence").value, compare = sort === "title-asc" ? (a,b) => a.title.localeCompare(b.title) : sort === "title-desc" ? (a,b) => b.title.localeCompare(a.title) : sort === "date-asc" ? (a,b) => new Date(a.timestamp) - new Date(b.timestamp) : (a,b) => new Date(b.timestamp) - new Date(a.timestamp); state.filteredEvidence.sort(compare); renderEvidenceList(); }
 export function clearFilters() { ["evidenceSearch", "filterType", "filterPerson", "filterLocation", "filterStatus", "filterRelevance"].forEach(id => { document.getElementById(id).value = ""; }); renderEvidenceList(); }
-export function handleSearchInput(event) { const requestId = ++state.latestSearchRequestId; new Promise(resolve => setTimeout(() => resolve(event.target.value), 300)).then(() => { if (requestId === state.latestSearchRequestId) renderEvidenceList(); }); }
+export async function handleSearchInput(event) {
+  const requestId = ++state.latestSearchRequestId;
+  await new Promise(resolve => setTimeout(resolve, 300));
+  if (requestId === state.latestSearchRequestId) renderEvidenceList();
+}
 
 export function openEvidenceDetail(id) { const ev = findEvidenceById(id); if (!ev) return; state.selectedEvidence = ev; const section = document.getElementById("evidenceDetailSection"); section.classList.remove("hidden"); renderEvidenceDetail(ev); section.scrollIntoView({ behavior: "smooth", block: "start" }); }
 export function closeEvidenceDetail() { const section = document.getElementById("evidenceDetailSection"); section.classList.add("hidden"); section.innerHTML = ""; state.selectedEvidence = null; }
