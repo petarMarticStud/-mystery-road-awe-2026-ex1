@@ -1,0 +1,22 @@
+{
+  "name": "mystery-road-awe-2026",
+  "version": "1.0.0",
+  "description": "Interactive mystery investigation app for Advanced Web Engineering",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/petarMarticStud/-mystery-road-awe-2026-ex1.git"
+  },
+  "author": "Peter Martic",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/petarMarticStud/-mystery-road-awe-2026-ex1/issues"
+  },
+  "homepage": "https://github.com/petarMarticStud/-mystery-road-awe-2026-ex1#readme",
+  "devDependencies": {
+    "prettier": "^3.9.9"
+  }
+}

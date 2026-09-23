@@ -185,7 +185,7 @@ testing session. Find a bug that produces **no visible change in the UI** — on
 ---
 
 ## Demo 5 — Bug hunt: full walkthrough & reflection
-
+jj
 Use every feature, in every view, more than once. Dashboard stats, evidence search/filter/sort/
 bookmark/detail/notes, people & locations tabs and their cross-links, timeline sorting/filtering/
 evidence links, and the workspace (bookmarks list, notes, hypothesis form — including reloading the
