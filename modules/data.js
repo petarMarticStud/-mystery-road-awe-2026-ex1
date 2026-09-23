@@ -42,6 +42,7 @@ async function loadTimelineData(onTimeline) {
 
 
 export async function loadAllData(onCoreData, onEvidence, onTimeline) {
+  const peopleResponse = await fetch("data/people.json")
   state.allPeople = await peopleResponse.json();
   
   const locationsResponse = await fetch("data/locations.json")
