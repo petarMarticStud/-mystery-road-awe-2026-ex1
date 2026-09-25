@@ -91,8 +91,8 @@ ticked. The table above is just a fast overview, tick the boxes inside each demo
 
 **Tasks**
 
-- [ ] Run the production build (`vite build`) and inspect the generated `dist/` folder.
-- [ ] Serve that build locally with `vite preview` (not the dev server) and confirm the app still works end-to-end from the built output.
+- [x] Run the production build (`vite build`) and inspect the generated `dist/` folder.
+- [x] Serve that build locally with `vite preview` (not the dev server) and confirm the app still works end-to-end from the built output.
 - [ ] Compare the dev-mode source with the built output for at least one file: note what changed (filenames, size, formatting/minification).
 
 **Questions** (depend on the tasks above)
