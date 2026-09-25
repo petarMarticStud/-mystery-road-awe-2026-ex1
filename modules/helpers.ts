@@ -1,18 +1,26 @@
 import { state } from "./state.js";
-export const findEvidenceById = (id) =>
+
+export const findEvidenceById = (id: string) =>
   state.allEvidence.find((item) => item.id === id) || null;
-export const findPersonById = (id) =>
+
+export const findPersonById = (id: string) =>
   state.allPeople.find((item) => item.id === id) || null;
-export const findLocationById = (id) =>
+
+export const findLocationById = (id: string) =>
   state.allLocations.find((item) => item.id === id) || null;
-export function evidenceMentionsPerson(ev, person) {
+
+export function evidenceMentionsPerson(
+  ev: { personIds?: string[] },
+  person: { id: string; name: string },
+): boolean {
   return (
     !!ev.personIds &&
     (ev.personIds.indexOf(person.id) !== -1 ||
       ev.personIds.indexOf(person.name) !== -1)
   );
 }
-export function formatDate(ts) {
+
+export function formatDate(ts: string | null | undefined): string {
   if (!ts) return "Unknown date";
   const d = new Date(ts);
   return isNaN(d.getTime())
@@ -23,9 +31,13 @@ export function formatDate(ts) {
         day: "numeric",
       }) +
         " " +
-        d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+        d.toLocaleTimeString(undefined, {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
 }
-export const statusBadgeClass = (status) => {
+
+export const statusBadgeClass = (status: string): string => {
   const value = (status || "").toLowerCase();
 
   return value === "reviewed"
@@ -35,7 +47,7 @@ export const statusBadgeClass = (status) => {
       : "badge-unreviewed";
 };
 
-export const relevanceBadgeClass = (relevance) =>
+export const relevanceBadgeClass = (relevance: string): string =>
   (relevance || "").toLowerCase() === "relevant"
     ? "badge-relevant"
     : "badge-unreviewed";
