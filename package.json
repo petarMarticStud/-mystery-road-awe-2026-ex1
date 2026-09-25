@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "lint": "eslint app.js modules/*.js",
+    "lint:fix": "eslint app.js modules/*.js --fix",
+    "format": "prettier --write app.js modules/*.js index.html styles.css package.json",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -20,6 +23,9 @@
   },
   "homepage": "https://github.com/petarMarticStud/-mystery-road-awe-2026-ex1#readme",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
     "prettier": "^3.9.9",
     "vite": "^8.3.1"
   }
