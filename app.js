@@ -153,4 +153,3 @@ async function initApp() {
 }
 
 window.addEventListener("DOMContentLoaded", initApp);
-const ciFailureExample = true;
