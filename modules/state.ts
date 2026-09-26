@@ -25,7 +25,7 @@ export const state = {
     timeline: false,
     workspace: false,
   },
-  notesStore: {},
+  notesStore: {} as Record<string, string>,
   latestSearchRequestId: 0,
 };
 
