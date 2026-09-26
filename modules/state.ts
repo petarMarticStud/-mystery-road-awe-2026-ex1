@@ -1,9 +1,4 @@
-import type {
-  Evidence,
-  Location,
-  Person,
-  TimelineEvent,
-} from "./domain.js";
+import type { Evidence, Location, Person, TimelineEvent } from "./domain.js";
 
 export const state = {
   allEvidence: [] as Evidence[],

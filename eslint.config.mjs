@@ -1,16 +1,17 @@
 import js from "@eslint/js";
+import { defineConfig } from "eslint/config";
 import globals from "globals";
+import tseslint from "typescript-eslint";
 
-export default [
-  {
-    files: ["app.js", "modules/*.js"],
-    languageOptions: {
-      ecmaVersion: "latest",
-      sourceType: "module",
-      globals: globals.browser,
-    },
-    rules:  { ...js.configs.recommended.rules,
-      "prefer-const": "error",
-     },
+export default defineConfig({
+  files: ["**/*.{js,ts}"],
+  extends: [js.configs.recommended, tseslint.configs.recommended],
+  languageOptions: {
+    ecmaVersion: "latest",
+    sourceType: "module",
+    globals: globals.browser,
   },
-];
+  rules: {
+    "prefer-const": "error",
+  },
+});

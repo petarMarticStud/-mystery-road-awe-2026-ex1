@@ -1,6 +1,5 @@
 import { state, STORAGE_KEYS } from "./state.js";
 
-
 interface HypothesisDraft {
   suspectId: string;
   nature: string;
@@ -28,14 +27,14 @@ export function saveNote(evidenceId: string, text: string) {
   state.notesStore[evidenceId] = text;
   localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(state.notesStore));
 }
-export function getNote(evidenceId : string): string {
+export function getNote(evidenceId: string): string {
   return state.notesStore[evidenceId] || "";
 }
 export function loadNotes() {
   const raw = localStorage.getItem(STORAGE_KEYS.notes);
   state.notesStore = raw ? JSON.parse(raw) : {};
 }
-export function loadNoteAsync(evidenceId: string) : Promise<string> {
+export function loadNoteAsync(evidenceId: string): Promise<string> {
   return Promise.resolve(state.notesStore[evidenceId] || "");
 }
 export function saveHypothesisDraft(draft: HypothesisDraft) {
@@ -43,5 +42,5 @@ export function saveHypothesisDraft(draft: HypothesisDraft) {
 }
 export function loadHypothesisDraft(): HypothesisDraft | null {
   const raw = localStorage.getItem(STORAGE_KEYS.hypothesis);
-  return raw ? JSON.parse(raw) as HypothesisDraft : null;
+  return raw ? (JSON.parse(raw) as HypothesisDraft) : null;
 }

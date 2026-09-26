@@ -1,9 +1,4 @@
-import type {
-  Evidence,
-  Location,
-  Person,
-  TimelineEvent,
-} from "./domain.ts";
+import type { Evidence, Location, Person, TimelineEvent } from "./domain.ts";
 import { state } from "./state.js";
 
 function hideLoadingStep() {

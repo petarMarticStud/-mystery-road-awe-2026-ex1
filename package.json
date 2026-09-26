@@ -4,15 +4,15 @@
   "description": "Interactive mystery investigation app for Advanced Web Engineering",
   "main": "app.js",
   "scripts": {
-   "dev": "tsc --noEmit && vite",
+    "dev": "tsc --noEmit && vite",
     "build": "tsc --noEmit && vite build",
-    "lint": "eslint app.js modules/*.js",
-    "lint:fix": "eslint app.js modules/*.js --fix",
-    "format": "prettier --write app.js modules/*.js index.html styles.css package.json",
+    "lint": "eslint app.js modules/*.ts",
+    "lint:fix": "eslint app.js modules/*.ts --fix",
+    "format": "prettier --write app.js \"modules/**/*.{js,ts}\" index.html styles.css package.json eslint.config.mjs tsconfig.json",
+    "format:check": "prettier --check app.js \"modules/**/*.{js,ts}\" index.html styles.css package.json eslint.config.mjs tsconfig.json",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  
   "repository": {
     "type": "git",
     "url": "git+https://github.com/petarMarticStud/-mystery-road-awe-2026-ex1.git"
@@ -28,7 +28,8 @@
     "eslint": "^10.11.0",
     "globals": "^17.12.0",
     "prettier": "^3.9.9",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1",
     "vite": "^8.3.1"
   }
 }
