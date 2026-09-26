@@ -1,3 +1,9 @@
+import type {
+  Evidence,
+  Location,
+  Person,
+  TimelineEvent,
+} from "./domain.ts";
 import { state } from "./state.js";
 
 function hideLoadingStep() {
@@ -8,10 +14,10 @@ function hideLoadingStep() {
   }
 }
 
-async function loadEvidenceData(onEvidence) {
+async function loadEvidenceData(onEvidence: () => void) {
   try {
     const evidenceResponse = await fetch("data/evidence.json");
-    const evidenceData = await evidenceResponse.json();
+    const evidenceData = (await evidenceResponse.json()) as Evidence[];
 
     state.allEvidence = evidenceData;
     state.filteredEvidence = [...state.allEvidence];
@@ -21,11 +27,11 @@ async function loadEvidenceData(onEvidence) {
   }
 }
 
-async function loadTimelineData(onTimeline) {
+async function loadTimelineData(onTimeline: () => void) {
   try {
     const response = await fetch("data/timeline.json");
 
-    state.allTimeline = await response.json();
+    state.allTimeline = (await response.json()) as TimelineEvent[];
 
     onTimeline();
   } catch (error) {
@@ -35,12 +41,16 @@ async function loadTimelineData(onTimeline) {
   }
 }
 
-export async function loadAllData(onCoreData, onEvidence, onTimeline) {
+export async function loadAllData(
+  onCoreData: () => void,
+  onEvidence: () => void,
+  onTimeline: () => void,
+) {
   const peopleResponse = await fetch("data/people.json");
-  state.allPeople = await peopleResponse.json();
+  state.allPeople = (await peopleResponse.json()) as Person[];
 
   const locationsResponse = await fetch("data/locations.json");
-  state.allLocations = await locationsResponse.json();
+  state.allLocations = (await locationsResponse.json()) as Location[];
 
   hideLoadingStep();
   onCoreData();

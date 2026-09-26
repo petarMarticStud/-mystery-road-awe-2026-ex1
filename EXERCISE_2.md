@@ -125,7 +125,7 @@ ticked. The table above is just a fast overview, tick the boxes inside each demo
 
 - [x] Install TypeScript and add a `tsconfig.json`. Deliberately choose your strictness settings (don't just copy a default blindly) and be ready to justify at least one setting you turned on or left off.
 - [x] Convert 2–3 of your smallest/utility modules from Exercise 1 (e.g. formatting or lookup helpers) from `.js` to `.ts`, with **no `any`**, and get them compiling with zero errors.
-- [] Wire TypeScript into your `build`/`dev` scripts from Demo 4 so type errors are actually surfaced by your tooling, not just by your editor.
+- [x] Wire TypeScript into your `build`/`dev` scripts from Demo 4 so type errors are actually surfaced by your tooling, not just by your editor.
 
 **Questions** (depend on the tasks above)
 
@@ -139,9 +139,9 @@ ticked. The table above is just a fast overview, tick the boxes inside each demo
 
 **Tasks**
 
-- [ ] Define TypeScript types/interfaces for the case's data model (evidence, people, locations, timeline events) that match the shape of `data/*.json`.
-- [ ] Convert your data-loading module to use these types instead of untyped `fetch().json()` results.
-- [ ] Pick one field that was genuinely ambiguous or inconsistent in the original JavaScript version (for example: something that could be either an id or a display name, or a date stored in more than one format) and show what modeling it as a proper TypeScript type forced you to decide.
+- [x] Define TypeScript types/interfaces for the case's data model (evidence, people, locations, timeline events) that match the shape of `data/*.json`.
+- [x] Convert your data-loading module to use these types instead of untyped `fetch().json()` results.
+- [x] Pick one field that was genuinely ambiguous or inconsistent in the original JavaScript version (for example: something that could be either an id or a display name, or a date stored in more than one format) and show what modeling it as a proper TypeScript type forced you to decide.
 
 **Questions** (depend on the tasks above)
 

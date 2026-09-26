@@ -1,12 +1,19 @@
+import type {
+  Evidence,
+  Location,
+  Person,
+  TimelineEvent,
+} from "./domain.js";
+
 export const state = {
-  allEvidence: [] as { id: string }[],
-  filteredEvidence: [],
-  selectedEvidence: null,
-  bookmarks: [],
+  allEvidence: [] as Evidence[],
+  filteredEvidence: [] as Evidence[],
+  selectedEvidence: null as Evidence | null,
+  bookmarks: [] as string[],
   currentPage: "dashboard",
-  allPeople: [] as { id: string; name: string }[],
-  allLocations: [] as { id: string }[],
-  allTimeline: [],
+  allPeople: [] as Person[],
+  allLocations: [] as Location[],
+  allTimeline: [] as TimelineEvent[],
   caseData: {},
   currentPeopleTab: "people",
   loadingStepsRemaining: 2,

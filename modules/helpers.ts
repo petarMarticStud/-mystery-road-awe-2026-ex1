@@ -11,12 +11,11 @@ export const findLocationById = (id: string) =>
 
 export function evidenceMentionsPerson(
   ev: { personIds?: string[] },
-  person: { id: string; name: string },
+  person: { id: string},
 ): boolean {
   return (
     !!ev.personIds &&
-    (ev.personIds.indexOf(person.id) !== -1 ||
-      ev.personIds.indexOf(person.name) !== -1)
+    (ev.personIds.indexOf(person.id) !== -1)
   );
 }
 
