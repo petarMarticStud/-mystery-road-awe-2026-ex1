@@ -47,3 +47,7 @@ export const relevanceBadgeClass = (relevance: string): string =>
   (relevance || "").toLowerCase() === "relevant"
     ? "badge-relevant"
     : "badge-unreviewed";
+
+
+    const val:string = "test";
+    
