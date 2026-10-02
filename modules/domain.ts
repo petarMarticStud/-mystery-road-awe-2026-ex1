@@ -44,5 +44,3 @@ export interface TimelineEvent {
   locationIds: LocationId[];
   evidenceIds: string[];
 }
-
-export const num: number = "its not a number"; // This will cause a TypeScript error because the type is incorrect
