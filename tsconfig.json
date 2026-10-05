@@ -3,11 +3,12 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
     "allowJs": true,
     "checkJs": false,
     "skipLibCheck": true
   },
-  "include": ["app.js", "modules/**/*"]
+  "include": ["app.js", "modules/**/*", "src/**/*"]
 }
