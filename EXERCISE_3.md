@@ -144,6 +144,8 @@ renders *something* visible, without removing the working vanilla app yet.
 - [ ] Pick one component in your diagram that appears in more than one place in the app. What made you extract it instead of duplicating its markup, and how does that compare to how the original vanilla app handled (or didn't handle) that same duplication?
 - [ ] Your diagram includes components you won't build until later exercises. Why is it useful to design the whole hierarchy now rather than only diagramming what you're about to build?
 
+## -->>>pdf
+
 ---
 
 ## Demo 8 — Architecture Decision Record: why SPA/React
@@ -158,6 +160,7 @@ renders *something* visible, without removing the working vanilla app yet.
 - [ ] What would you lose by keeping this app as server-rendered vanilla HTML/JS instead? What would you lose by choosing React specifically over a *different* SPA approach (e.g. vanilla JS with a router, or a lighter library)?
 - [ ] If this app needed to support users on very low-end devices or poor connections as a hard requirement, would you stick with SPA or change the architecture? Why or why not?
 
+## -->powerpoint
 ---
 
 ## Demo 9 — Migrate the application shell
