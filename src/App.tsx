@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import Dashboard from "./Dashboard";
 import { loadDashboardData } from "./dashboardData";
 import type { DashboardData } from "./dashboardData";
+import { Panel } from "./components/Panel";
+import { PersonCard } from "./features/people-locations/PersonCard";
+import { LocationCard } from "./features/people-locations/LocationCard";
+import { TimelineEventCard } from "./features/timeline/TimelineEventCard";
 
 const pages = [
   { id: "dashboard", label: "Dashboard" },
@@ -68,7 +72,7 @@ export default function App() {
   const activePage = pages.find((page) => page.id === currentPage)!;
 
   function renderCurrentPage() {
-    if (currentPage !== "dashboard") {
+    if (currentPage === "evidence" || currentPage === "workspace") {
       return (
         <section key={currentPage}>
           <h2>{activePage.label}</h2>
@@ -82,7 +86,43 @@ export default function App() {
     }
 
     if (data === null) {
-      return <p role="status">Dashboard wird geladen …</p>;
+      return <p role="status">Daten werden geladen …</p>;
+    }
+
+    if (currentPage === "people") {
+      return (
+        <>
+          <Panel title="Personen">
+            {data.people.map((person) => (
+              <PersonCard key={person.id} name={person.name} role={person.role} />
+            ))}
+          </Panel>
+          <Panel title="Orte">
+            {data.locations.map((location) => (
+              <LocationCard
+                key={location.id}
+                name={location.name}
+                description={location.description}
+              />
+            ))}
+          </Panel>
+        </>
+      );
+    }
+
+    if (currentPage === "timeline") {
+      return (
+        <Panel title="Timeline">
+          {data.timeline.map((event) => (
+            <TimelineEventCard
+              key={event.id}
+              time={event.time}
+              title={event.title}
+              description={event.description}
+            />
+          ))}
+        </Panel>
+      );
     }
 
     return <Dashboard data={data} />;
