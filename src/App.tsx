@@ -94,7 +94,11 @@ export default function App() {
         <>
           <Panel title="Personen">
             {data.people.map((person) => (
-              <PersonCard key={person.id} name={person.name} role={person.role} />
+              <PersonCard
+                key={person.id}
+                name={person.name}
+                role={person.role}
+              />
             ))}
           </Panel>
           <Panel title="Orte">
@@ -109,8 +113,15 @@ export default function App() {
         </>
       );
     }
-
     if (currentPage === "timeline") {
+      if (data.timeline.length === 0) {
+        return (
+          <Panel title="Timeline">
+            <p>Keine Ereignisse vorhanden.</p>
+          </Panel>
+        );
+      }
+
       return (
         <Panel title="Timeline">
           {data.timeline.map((event) => (
@@ -119,6 +130,7 @@ export default function App() {
               time={event.time}
               title={event.title}
               description={event.description}
+              certainty={event.certainty}
             />
           ))}
         </Panel>
