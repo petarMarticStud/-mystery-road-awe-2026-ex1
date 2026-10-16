@@ -81,7 +81,7 @@ each with an explicitly typed props interface/type (no untyped or `any` props).
 **Questions** (depend on the tasks above)
 
 - [ ] What does React actually use `key` for internally?
-
+## Struktur besteht App.tsx mit .map zeigen und http://localhost:5173/-mystery-road-awe-2026-ex1/react.html#people z.B zeigen
 ---
 
 ## Demo 4 — Stable keys and list identity
