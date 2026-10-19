@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Dashboard from "./Dashboard";
+import Dashboard from "./features/dashboard/Dashboard";
 import { loadDashboardData } from "./dashboardData";
 import type { DashboardData } from "./dashboardData";
 import { Panel } from "./components/Panel";
