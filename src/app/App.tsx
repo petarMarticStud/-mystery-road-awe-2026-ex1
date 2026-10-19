@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import Dashboard from "./features/dashboard/Dashboard";
-import { loadDashboardData } from "./dashboardData";
-import type { DashboardData } from "./dashboardData";
-import { Panel } from "./components/Panel";
-import { PersonCard } from "./features/people-locations/PersonCard";
-import { LocationCard } from "./features/people-locations/LocationCard";
-import { TimelineEventCard } from "./features/timeline/TimelineEventCard";
+import Dashboard from "../features/dashboard/Dashboard";
+import { loadDashboardData } from "../dashboardData";
+import type { DashboardData } from "../dashboardData";
+import { Panel } from "../components/Panel";
+import { PersonCard } from "../features/people-locations/PersonCard";
+import { LocationCard } from "../features/people-locations/LocationCard";
+import { TimelineEventCard } from "../features/timeline/TimelineEventCard";
 
 const pages = [
   { id: "dashboard", label: "Dashboard" },

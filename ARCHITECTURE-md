@@ -1,0 +1,32 @@
+# React-Architektur
+
+Der React-Quellcode ist überwiegend nach Features organisiert.
+
+- `src/app/`: Anwendungsshell und zentrale Steuerung.
+  `App.tsx` enthält Header, Navigation, Datenladen und Seitenauswahl.
+- `src/features/dashboard/`: Dashboard und Statistikbereich.
+- `src/features/people-locations/`: Darstellung von Personen und Orten.
+- `src/features/timeline/`: Darstellung von Timeline-Ereignissen.
+- `src/components/`: allgemeine UI-Bausteine für mehrere Features.
+- `src/dashboardData.ts`: gemeinsames Datenladen und zugehörige Typen.
+- `src/main.tsx`: React-Einstiegspunkt.
+
+## Shared oder feature-lokal?
+
+Eine Komponente bleibt im Feature-Ordner, wenn sie fachlich
+zu diesem Bereich gehört.
+
+Ein allgemeiner UI-Baustein gehört nach `components`, wenn er
+keine spezielle Feature-Logik voraussetzt und tatsächlich
+in mehreren Features verwendet wird.
+
+Beispiele:
+- `TimelineEventCard` ist feature-lokal, weil sie ein
+  Timeline-Ereignis darstellt.
+- `Panel` ist shared, weil es einen allgemeinen Rahmen
+  bereitstellt und sowohl People & Locations als auch
+  Timeline verwenden.
+
+Die Ordnerzugehörigkeit richtet sich nach dem fachlichen Bereich.
+Die Einordnung als presentational oder container beschreibt
+dagegen die Verantwortung einer Komponente.
