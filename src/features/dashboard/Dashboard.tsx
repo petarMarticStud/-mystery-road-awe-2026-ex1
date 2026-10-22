@@ -1,7 +1,9 @@
 import type { CaseInfo, DashboardData } from "../../dashboardData";
 import type { Evidence, TimelineEvent } from "../../../modules/domain";
 import { formatDate, statusBadgeClass } from "../../../modules/helpers";
+import {Badge} from "../../components/Badge";
 import { DashboardStatistics } from "./DashboardStatistics";
+
 
 interface CaseSummaryProps {
   caseInfo: CaseInfo;
@@ -24,11 +26,10 @@ function CaseSummary({ caseInfo }: CaseSummaryProps) {
     <div className="case-summary-card">
       <h3>{caseInfo.title}</h3>
 
-      <p>
-        <span className="badge badge-flagged">
-          {caseInfo.status.toUpperCase()}
-        </span>
-      </p>
+      <Badge
+        label={caseInfo.status.toUpperCase()}
+        className="badge-flagged"
+        />
 
       <p>{caseInfo.summary}</p>
     </div>
@@ -47,9 +48,12 @@ function RecentEvidence({ evidence }: RecentEvidenceProps) {
       {recent.map((item) => (
         <div className="mini-list-item" key={item.id}>
           <strong>{item.id}</strong> — {item.title}{" "}
-          <span className={`badge ${statusBadgeClass(item.status)}`}>
-            {item.status}
-          </span>
+
+          <Badge
+            label={item.status}
+            className={statusBadgeClass(item.status)}
+          />
+
         </div>
       ))}
     </div>
