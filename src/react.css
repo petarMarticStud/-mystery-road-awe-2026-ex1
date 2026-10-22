@@ -75,3 +75,64 @@
 .react-main .panel-content p:last-child {
   margin-bottom: 0;
 }
+
+.react-main .person-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.react-main .person-card:hover {
+  border-color: #b6c9ed;
+  box-shadow: 0 6px 20px rgba(22, 35, 59, 0.08);
+}
+
+.react-main .person-card > p {
+  color: var(--color-text-muted);
+  margin-top: 0;
+  margin-bottom: 24px;
+}
+
+.person-card-actions {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.detail-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #edf3ff;
+  color: #1e4fb8;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 160ms ease;
+}
+
+.detail-button span {
+  transition: transform 160ms ease;
+}
+
+.detail-button:hover {
+  background: #dce8ff;
+}
+
+.detail-button:hover span {
+  transform: translateX(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-main .person-card,
+  .detail-button,
+  .detail-button span {
+    transition: none;
+  }
+}

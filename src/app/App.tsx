@@ -6,7 +6,8 @@ import { Panel } from "../components/Panel";
 import { PersonCard } from "../features/people-locations/PersonCard";
 import { LocationCard } from "../features/people-locations/LocationCard";
 import { TimelineEventCard } from "../features/timeline/TimelineEventCard";
-import { NavLink, Navigate, Route, Routes } from "react-router";
+import { Link, NavLink, Navigate, Route, Routes } from "react-router";
+import { PersonDetailPage } from "../features/people-locations/PersonDetailPage";
 
 export default function App() {
   // App bleibt beim Navigieren bestehen und behaelt deshalb die Daten.
@@ -24,7 +25,7 @@ export default function App() {
         }
       } catch (error) {
         if (!cancelled) {
-          let message = "Daten konnten nicht geladen werden.";
+          let message = "Could not load data.";
           if (error instanceof Error) {
             message = error.message;
           }
@@ -51,7 +52,7 @@ export default function App() {
             </div>
           </div>
 
-          <nav className="main-nav" aria-label="Hauptnavigation">
+          <nav className="main-nav" aria-label="Main navigation">
             <NavLink to="/dashboard" className="nav-btn">
               Dashboard
             </NavLink>
@@ -82,9 +83,9 @@ export default function App() {
             path="/dashboard"
             element={
               error !== null ? (
-                <p role="alert">Fehler: {error}</p>
+                <p role="alert">Error: {error}</p>
               ) : data === null ? (
-                <p>Daten werden geladen …</p>
+                <p>Loading data…</p>
               ) : (
                 <Dashboard data={data} />
               )
@@ -100,28 +101,35 @@ export default function App() {
             path="/team/people"
             element={
               <>
-                <nav className="team-tabs" aria-label="Personen und Orte">
+                <nav className="team-tabs" aria-label="People and locations">
                   <NavLink to="/team/people" className="nav-btn">
-                    Personen
+                    People
                   </NavLink>
 
                   <NavLink to="/team/locations" className="nav-btn">
-                    Orte
+                    Locations
                   </NavLink>
                 </nav>
 
                 {error !== null ? (
-                  <p role="alert">Fehler: {error}</p>
+                  <p role="alert">Error: {error}</p>
                 ) : data === null ? (
-                  <p>Daten werden geladen …</p>
+                  <p>Loading data…</p>
                 ) : (
-                  <Panel title="Personen">
+                  <Panel title="People">
                     {data.people.map((person) => (
                       <PersonCard
                         key={person.id}
                         name={person.name}
                         role={person.role}
-                      />
+                      >
+                        <Link
+                          to={`/team/people/${person.id}`}
+                          className="detail-button"
+                        >
+                          View profile <span aria-hidden="true">→</span>
+                        </Link>
+                      </PersonCard>
                     ))}
                   </Panel>
                 )}
@@ -130,25 +138,38 @@ export default function App() {
           />
 
           <Route
+            path="/team/people/:personId"
+            element={
+              error !== null ? (
+                <p role="alert">Error: {error}</p>
+              ) : data === null ? (
+                <p>Loading data…</p>
+              ) : (
+                <PersonDetailPage people={data.people} />
+              )
+            }
+          />
+
+          <Route
             path="/team/locations"
             element={
               <>
-                <nav className="team-tabs" aria-label="Personen und Orte">
+                <nav className="team-tabs" aria-label="People and locations">
                   <NavLink to="/team/people" className="nav-btn">
-                    Personen
+                    People
                   </NavLink>
 
                   <NavLink to="/team/locations" className="nav-btn">
-                    Orte
+                    Locations
                   </NavLink>
                 </nav>
 
                 {error !== null ? (
-                  <p role="alert">Fehler: {error}</p>
+                  <p role="alert">Error: {error}</p>
                 ) : data === null ? (
-                  <p>Daten werden geladen …</p>
+                  <p>Loading data…</p>
                 ) : (
-                  <Panel title="Orte">
+                  <Panel title="Locations">
                     {data.locations.map((location) => (
                       <LocationCard
                         key={location.id}
@@ -166,13 +187,13 @@ export default function App() {
             path="/timeline"
             element={
               error !== null ? (
-                <p role="alert">Fehler: {error}</p>
+                <p role="alert">Error: {error}</p>
               ) : data === null ? (
-                <p>Daten werden geladen …</p>
+                <p>Loading data…</p>
               ) : (
                 <Panel title="Timeline">
                   {data.timeline.length === 0 ? (
-                    <p>Keine Ereignisse vorhanden.</p>
+                    <p>No events available.</p>
                   ) : (
                     data.timeline.map((event) => (
                       <TimelineEventCard
@@ -191,12 +212,12 @@ export default function App() {
 
           <Route
             path="/evidence"
-            element={<p>Diese Ansicht wird später nach React migriert.</p>}
+            element={<p>This view will be migrated to React later.</p>}
           />
 
           <Route
             path="/workspace"
-            element={<p>Diese Ansicht wird später nach React migriert.</p>}
+            element={<p>This view will be migrated to React later.</p>}
           />
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
