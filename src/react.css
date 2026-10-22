@@ -1,0 +1,77 @@
+/* Layout for the React entry point, using the shared design tokens. */
+.main-nav .nav-btn,
+.team-tabs .nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.team-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 8px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.team-tabs .nav-btn {
+  color: var(--color-text);
+  background: var(--color-bg);
+  border-color: var(--color-border);
+  padding: 10px 24px;
+}
+
+.team-tabs .nav-btn:hover {
+  background: #e0e9fc;
+  border-color: var(--color-accent);
+}
+
+.team-tabs .nav-btn.active {
+  color: #fff;
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.react-main .panel > h2 {
+  margin-bottom: 20px;
+}
+
+.react-main .panel-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 20px;
+}
+
+.react-main .person-card,
+.react-main .location-card,
+.react-main .timeline-event-card {
+  margin: 0;
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+  box-shadow: var(--shadow);
+  overflow-wrap: anywhere;
+}
+
+.react-main .panel-content:has(.timeline-event-card) {
+  grid-template-columns: 1fr;
+}
+
+.react-main .timeline-event-card time {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.react-main .panel-content p:last-child {
+  margin-bottom: 0;
+}
