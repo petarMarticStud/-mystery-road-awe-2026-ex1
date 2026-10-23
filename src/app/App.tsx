@@ -5,9 +5,9 @@ import type { DashboardData } from "../dashboardData";
 import { Panel } from "../components/Panel";
 import { PersonCard } from "../features/people-locations/PersonCard";
 import { LocationCard } from "../features/people-locations/LocationCard";
-import { TimelineEventCard } from "../features/timeline/TimelineEventCard";
 import { Link, NavLink, Navigate, Route, Routes } from "react-router";
 import { PersonDetailPage } from "../features/people-locations/PersonDetailPage";
+import {TimelinePage} from "../features/timeline/TimelinePage";
 
 export default function App() {
   // App bleibt beim Navigieren bestehen und behaelt deshalb die Daten.
@@ -195,15 +195,10 @@ export default function App() {
                   {data.timeline.length === 0 ? (
                     <p>No events available.</p>
                   ) : (
-                    data.timeline.map((event) => (
-                      <TimelineEventCard
-                        key={event.id}
-                        time={event.time}
-                        title={event.title}
-                        description={event.description}
-                        certainty={event.certainty}
+                      <TimelinePage
+                        events={data.timeline}
+                        people={data.people}
                       />
-                    ))
                   )}
                 </Panel>
               )
