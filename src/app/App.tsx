@@ -7,7 +7,9 @@ import { PersonCard } from "../features/people-locations/PersonCard";
 import { LocationCard } from "../features/people-locations/LocationCard";
 import { Link, NavLink, Navigate, Route, Routes } from "react-router";
 import { PersonDetailPage } from "../features/people-locations/PersonDetailPage";
-import {TimelinePage} from "../features/timeline/TimelinePage";
+import { TimelinePage } from "../features/timeline/TimelinePage";
+import { EvidencePage } from "../features/evidence/EvidencePage";
+import { WorkspacePage } from "../features/workspace/WorkspacePage";
 
 export default function App() {
   // App bleibt beim Navigieren bestehen und behaelt deshalb die Daten.
@@ -195,10 +197,7 @@ export default function App() {
                   {data.timeline.length === 0 ? (
                     <p>No events available.</p>
                   ) : (
-                      <TimelinePage
-                        events={data.timeline}
-                        people={data.people}
-                      />
+                    <TimelinePage events={data.timeline} people={data.people} />
                   )}
                 </Panel>
               )
@@ -207,12 +206,28 @@ export default function App() {
 
           <Route
             path="/evidence"
-            element={<p>This view will be migrated to React later.</p>}
+            element={
+              error !== null ? (
+                <p role="alert">Error: {error}</p>
+              ) : data === null ? (
+                <p>Loading data…</p>
+              ) : (
+                <EvidencePage data={data} />
+              )
+            }
           />
 
           <Route
             path="/workspace"
-            element={<p>This view will be migrated to React later.</p>}
+            element={
+              error !== null ? (
+                <p role="alert">Error: {error}</p>
+              ) : data === null ? (
+                <p>Loading data…</p>
+              ) : (
+                <WorkspacePage data={data} />
+              )
+            }
           />
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
