@@ -49,7 +49,9 @@ function EvidenceNote({ evidence }: { evidence: Evidence }) {
 export function EvidencePage({ data }: { data: DashboardData }) {
   const [search, setSearch] = useState("");
   // Demo 5 will move bookmark ownership to the common ancestor.
-  const [bookmarks, setBookmarks] = useState(data.bookmarks);
+  const [bookmarks, setBookmarks] = useState<readonly string[]>(() => [
+    ...data.bookmarks,
+  ]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = data.evidence.find((item) => item.id === selectedId);
   const term = search.trim().toLowerCase();
@@ -60,11 +62,15 @@ export function EvidencePage({ data }: { data: DashboardData }) {
   );
 
   function toggleBookmark(id: string) {
-    setBookmarks((previous) =>
-      previous.includes(id)
-        ? previous.filter((item) => item !== id)
-        : [...previous, id],
-    );
+    setBookmarks((previous) => {
+      if (previous.includes(id)) {
+        // filter creates a new array; previous stays unchanged.
+        return previous.filter((item) => item !== id);
+      }
+
+      // Do not use previous.push(id): state must keep its old snapshot.
+      return [...previous, id];
+    });
   }
 
   return (

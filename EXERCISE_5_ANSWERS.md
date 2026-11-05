@@ -101,3 +101,58 @@ Demo 7 behandelt eine andere State-Domäne: Filter, Suche und Sortierung mit meh
 7. Für die Theoriefrage den Such-Handler vorübergehend entfernen, das blockierte Feld zeigen und den Handler wiederherstellen.
 
 Die Self-Check-Kästchen bleiben zur eigenen Bestätigung der Live-Demonstration offen.
+
+## Demo 3 — Immutable Updates
+
+### Schritt 1: Eine echte Mutation als Ausgangspunkt finden
+
+Die separate Vanilla-Version in `modules/views.ts` verwendet beim Bookmark-Hinzufügen `state.bookmarks.push(id)` und setzt außerdem `evidence.bookmarked = true`. Das verändert das vorhandene Array bzw. Evidence-Objekt direkt. In React übernehmen wir diese Vorgehensweise nicht. Die React-Version war bereits seit Demo 1 unveränderlich; wir behaupten deshalb nicht, hier einen zuvor vorhandenen React-Mutationsfehler behoben zu haben.
+
+### Schritt 2: Beide Toggle-Fälle ausdrücklich unveränderlich umsetzen
+
+In `EvidencePage.tsx`:
+
+```tsx
+setBookmarks((previous) => {
+  if (previous.includes(id)) {
+    return previous.filter((item) => item !== id);
+  }
+  return [...previous, id];
+});
+```
+
+- **Entfernen:** `filter` erstellt ein neues Array ohne die ID.
+- **Hinzufügen:** `[...previous, id]` erstellt ein neues Array mit den bisherigen IDs und der neuen ID.
+- **In beiden Fällen:** Der Inhalt des bisherigen Arrays bleibt erhalten. Das Evidence-Objekt wird ebenfalls nicht verändert; der Stern ergibt sich aus `bookmarks.includes(item.id)`.
+- Der funktionale Setter erhält den jeweils aktuellen vorherigen State, auch wenn React mehrere Updates zusammen verarbeitet.
+
+Der State wird mit `useState<readonly string[]>(() => [...data.bookmarks])` initialisiert. Die Kopie trennt ihn vom Array aus den Props. `readonly` verhindert in TypeScript direkte Aufrufe wie `bookmarks.push(...)` und `bookmarks.sort()`. Es friert das Array zur Laufzeit nicht ein; die Update-Logik muss weiterhin korrekt bleiben.
+
+### Frage 1: Warum kann direkte Mutation scheinbar funktionieren, und was vergleicht React?
+
+**Vanilla JS:** Wenn wir ein Array direkt verändern und anschließend die Ansicht manuell neu aufbauen, kann die Änderung sichtbar werden. Der Browser benötigt dafür keine neue Array-Referenz. Trotzdem betrifft die Mutation alle Stellen, die dasselbe Array verwenden.
+
+**React:** Bei `useState` vergleicht React alten und neuen State mit `Object.is`. Bei Arrays und Objekten ist dabei die Referenz entscheidend, nicht ein tiefer Vergleich aller Inhalte. `previous.push(id); return previous;` würde dasselbe Array zurückgeben. React kann das Update deshalb überspringen.
+
+Wenn später ein anderer State ein Rendern auslöst, kann die zuvor mutierte Änderung plötzlich sichtbar werden. Dadurch wirkt die Mutation manchmal erfolgreich, obwohl sie React nicht zuverlässig über die Änderung informiert hat. Außerdem wurden frühere State-Snapshots nachträglich verändert und andere Nutzer derselben Referenz können unerwartete Werte sehen.
+
+**Unterschied:** Vanilla rendert nach unserem ausdrücklichen Aufruf. React braucht korrekte State-Updates; eine neue Array-Referenz signalisiert die Änderung. React schützt Arrays nicht automatisch vor Mutation.
+
+### Frage 2: Wie vermeiden wir den früheren Fehler mit gemeinsam genutzten Arrays?
+
+**Vanilla-Fehler:** Wenn `filteredEvidence` und die vollständige Evidence-Liste dasselbe Array referenzieren, verändert `filteredEvidence.sort(...)` auch die Reihenfolge der vollständigen Liste. Ein zweiter Variablenname erstellt keine Kopie.
+
+**Unsere React-Lösung:** Beim Bookmark-Toggle geben beide Zweige ein neues Array zurück. Wir rufen weder `push` noch `splice` auf dem bisherigen State auf. Auch beim Initialisieren wird `data.bookmarks` kopiert. Die ursprünglichen Arrays bleiben unverändert.
+
+Beispiel: Vorher ist `previous = ["E01"]`. Beim Hinzufügen von `E02` entsteht `next = ["E01", "E02"]`. Danach ist `previous` weiterhin `["E01"]`, und `Object.is(previous, next)` ergibt `false`. Beim Entfernen erstellt `filter` ebenfalls ein neues Array, auch wenn das Ergebnis leer ist.
+
+Für spätere Sortierung gilt dasselbe Prinzip: `[...evidence].sort(compare)` statt `evidence.sort(compare)`. Die vollständige Sortierfunktion folgt in einer späteren Demo; React selbst macht `sort()` nicht unveränderlich.
+
+### Live vorführen
+
+1. Einen nicht gesetzten Stern anklicken: Die ID wird mit einem neuen Array hinzugefügt.
+2. Denselben Stern erneut anklicken: Die ID wird mit einem neuen Array entfernt.
+3. Im Debugger innerhalb des Setters die alte Referenz als `previous` behalten. Am jeweiligen `return` den neuen Ausdruck ansehen: `Object.is(previous, previous.filter((item) => item !== id))` bzw. `Object.is(previous, [...previous, id])` ist `false`; `previous` selbst bleibt unverändert.
+4. Zum Erklären kann vorübergehend `previous.push(id)` eingegeben werden: TypeScript meldet wegen `readonly` einen Fehler. Diesen absichtlich falschen Aufruf anschließend entfernen.
+
+Es wurden keine automatisierten Tests ergänzt. Gemeinsames Bookmark-Ownership und Persistenz bleiben für spätere Demos offen.
