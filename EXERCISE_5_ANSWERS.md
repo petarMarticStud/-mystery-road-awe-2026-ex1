@@ -156,3 +156,56 @@ Für spätere Sortierung gilt dasselbe Prinzip: `[...evidence].sort(compare)` st
 4. Zum Erklären kann vorübergehend `previous.push(id)` eingegeben werden: TypeScript meldet wegen `readonly` einen Fehler. Diesen absichtlich falschen Aufruf anschließend entfernen.
 
 Es wurden keine automatisierten Tests ergänzt. Gemeinsames Bookmark-Ownership und Persistenz bleiben für spätere Demos offen.
+
+## Demo 4 — Abgeleitete Werte statt zusätzlichem State
+
+### Schritt 1: Filter und Sortierung aktivieren
+
+In `EvidencePage.tsx` speichern wir nur die Benutzerauswahl: `search` sowie `filters` mit Typ, Person, Ort, Status, Relevanz und Sortierung. Alle Steuerelemente sind kontrolliert. Personen und Orte werden über IDs gefiltert. Typ, Status und Relevanz werden beim Vergleichen kleingeschrieben, damit beispielsweise `Test-Report` und `test-report` zusammenpassen.
+
+Bei jedem Rendern wird `results` aus `data.evidence` und der aktuellen Auswahl neu berechnet. Es gibt keinen `useState` für `results`. Alle Filter werden mit UND kombiniert. Sortiert werden kann nach Titel oder Zeit auf-/absteigend. Clear filters setzt Suche, alle Filter und Sortierung zurück. Der Reducer-Umbau folgt erst in Demo 7.
+
+### Schritt 2: Die vollständige Liste schützen
+
+`data.evidence.filter(...)` erzeugt immer ein neues Array, selbst ohne aktive Filter. Nur dieses neue Array wird mit `results.sort(...)` sortiert. Die Evidence-Objekte selbst werden beim Vergleichen nicht verändert. Bei Original order wird nicht sortiert; die Reihenfolge stammt wieder aus der unveränderten vollständigen Liste.
+
+### Schritt 3: Bookmark-Zähler und Liste aus derselben Quelle berechnen
+
+Der lokale Bookmark-State wurde aus `EvidencePage` entfernt. Die einzige Quelle ist jetzt `data.bookmarks` im bestehenden `useState` von `App`. `toggleBookmark` in `App.tsx` erstellt bei jedem Toggle ein neues Bookmark-Array und ein neues Datenobjekt. Über `onToggleBookmark` kann die Evidence-Seite die Änderung auslösen.
+
+Die vorhandenen Ableitungen verwenden damit dieselbe aktuelle Quelle:
+
+- Dashboard: `data.bookmarks.length`, als Prop an `DashboardStatistics` übergeben. Kein eigener State für den Zähler.
+- Workspace: `data.evidence.filter((item) => data.bookmarks.includes(item.id))`. Kein eigener State für die Bookmark-Liste.
+- Evidence: Der Stern wird aus `data.bookmarks.includes(item.id)` bestimmt.
+
+Diese Verbindung ist notwendig, um Demo 4 vollständig zu erfüllen, und nimmt das State-Lifting aus Demo 5 sowie einen Bookmark-Callback aus Demo 6 bereits vorweg. Die Beschreibung von lokalem Bookmark-State in Demo 1–3 dokumentiert deren damaligen Zwischenstand. Bookmark-Persistenz wurde in diesem Schritt nicht ergänzt: Navigation erhält den State, ein vollständiges Neuladen lädt wieder die zuvor gespeicherten Bookmarks.
+
+### Frage 1: Was gehört in State, was wird berechnet?
+
+**Regel:** Was sich vollständig aus vorhandenen Props und State berechnen lässt, wird beim Rendern berechnet. Eigenständige Informationen wie eine Benutzereingabe gehören in State.
+
+**React:** Suchtext und Filterauswahl sind State, weil der Benutzer sie unabhängig ändert. Die Ergebnisliste ist dagegen vollständig durch die Evidence-Daten und diese Auswahl festgelegt. Deshalb ist sie eine normale berechnete Variable. `useMemo` könnte bei einer teuren Berechnung die Ergebnisse zwischenspeichern, wäre aber hier für die Korrektheit nicht nötig und kein zusätzlicher fachlicher State.
+
+**Vanilla JS:** Eine separate Variable `filteredEvidence` musste bei jeder relevanten Änderung aktualisiert und anschließend die Ansicht neu aufgebaut werden. Wurde ein Aktualisierungsschritt vergessen, konnte sie veraltet sein.
+
+**Unterschied:** React berechnet die Liste bei jedem Rendern aus den aktuellen Eingaben. Eine separat gespeicherte Ergebnisliste müsste zusätzlich synchron gehalten werden und bietet hier keinen Nutzen.
+
+### Frage 2: Warum verhindern diese Ableitungen beide früheren Fehlerklassen?
+
+**Veralteter Dashboard-Zähler:** In Vanilla wurde das Dashboard nur beim ersten Besuch aufgebaut. Spätere Bookmark-Änderungen waren deshalb nicht zwangsläufig sichtbar. Jetzt ändert `App` den gemeinsamen State. Das Dashboard berechnet beim nächsten Rendern `data.bookmarks.length` aus genau diesem State. Es gibt keinen separat gespeicherten Zähler und keine Logik, die nur beim ersten Besuch zählt. Ein Auseinanderlaufen zweier gespeicherter Werte ist damit ausgeschlossen.
+
+**Gemeinsame Array-Referenz beim Sortieren:** In Vanilla konnten `filteredEvidence` und die vollständige Liste dasselbe Array sein. `sort()` veränderte dann auch die vollständige Liste. In unserer konkreten React-Implementierung wird `results` immer durch `filter()` neu erzeugt. Deshalb kann `results.sort()` die Reihenfolge von `data.evidence` nicht ändern. Wichtig: Allein das Wort „abgeleitet“ schützt nicht vor Mutation. Erst die neue Array-Referenz und der Verzicht auf Mutation der ursprünglichen Daten verhindern diesen Fehler.
+
+**Unterschied:** React übernimmt weder Kopieren noch korrekte State-Modellierung automatisch. Unser Aufbau verhindert die Fehler, weil es nur eine Bookmark-Quelle gibt und das Sortieren ausschließlich auf einem neu erstellten Array erfolgt.
+
+### Live vorführen
+
+1. Originalreihenfolge merken, nach Titel und anschließend nach Datum sortieren. Original order wählen: Die ursprüngliche Reihenfolge ist wieder da.
+2. Suche und mehrere Filter kombinieren. Nur Items, die alle Bedingungen erfüllen, bleiben sichtbar.
+3. Eine Kombination ohne Treffer wählen; danach Clear filters drücken. Alle Evidence-Items erscheinen wieder in Originalreihenfolge.
+4. Einen Stern setzen und zum Dashboard wechseln: Der Bookmark-Zähler steigt um eins.
+5. Workspace öffnen: Genau dieses Item erscheint in der Bookmark-Liste.
+6. Den Stern wieder entfernen und beide Ansichten erneut besuchen: Zähler und Liste passen wieder zusammen.
+
+Self-Check erst nach eigener erfolgreicher Vorführung abhaken. Es wurden keine automatisierten Tests ergänzt.

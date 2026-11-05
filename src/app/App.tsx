@@ -16,6 +16,16 @@ export default function App() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  function toggleBookmark(id: string) {
+    setData((previous) => {
+      if (previous === null) return previous;
+      const bookmarks = previous.bookmarks.includes(id)
+        ? previous.bookmarks.filter((item) => item !== id)
+        : [...previous.bookmarks, id];
+      return { ...previous, bookmarks };
+    });
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -212,7 +222,7 @@ export default function App() {
               ) : data === null ? (
                 <p>Loading data…</p>
               ) : (
-                <EvidencePage data={data} />
+                <EvidencePage data={data} onToggleBookmark={toggleBookmark} />
               )
             }
           />

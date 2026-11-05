@@ -46,32 +46,104 @@ function EvidenceNote({ evidence }: { evidence: Evidence }) {
   );
 }
 
-export function EvidencePage({ data }: { data: DashboardData }) {
+const initialFilters = {
+  type: "",
+  person: "",
+  location: "",
+  status: "",
+  relevance: "",
+  sort: "original",
+};
+
+interface EvidencePageProps {
+  data: DashboardData;
+  onToggleBookmark: (id: string) => void;
+}
+
+export function EvidencePage({ data, onToggleBookmark }: EvidencePageProps) {
   const [search, setSearch] = useState("");
-  // Demo 5 will move bookmark ownership to the common ancestor.
-  const [bookmarks, setBookmarks] = useState<readonly string[]>(() => [
-    ...data.bookmarks,
-  ]);
+  const [filters, setFilters] = useState(initialFilters);
+  const bookmarks = data.bookmarks;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = data.evidence.find((item) => item.id === selectedId);
   const term = search.trim().toLowerCase();
-  const results = data.evidence.filter((item) =>
-    [item.title, item.summary, ...item.tags].some((text) =>
-      text.toLowerCase().includes(term),
-    ),
+  const results = data.evidence.filter(
+    (item) =>
+      [item.title, item.summary, ...item.tags].some((text) =>
+        text.toLowerCase().includes(term),
+      ) &&
+      (!filters.type || item.type.toLowerCase() === filters.type) &&
+      (!filters.person || item.personIds.includes(filters.person)) &&
+      (!filters.location || item.locationIds.includes(filters.location)) &&
+      (!filters.status || item.status.toLowerCase() === filters.status) &&
+      (!filters.relevance ||
+        item.relevance.toLowerCase() === filters.relevance),
   );
-
-  function toggleBookmark(id: string) {
-    setBookmarks((previous) => {
-      if (previous.includes(id)) {
-        // filter creates a new array; previous stays unchanged.
-        return previous.filter((item) => item !== id);
-      }
-
-      // Do not use previous.push(id): state must keep its old snapshot.
-      return [...previous, id];
-    });
+  // filter always creates a new array, including when all filters are empty.
+  // Sorting this result cannot change the master evidence array.
+  if (filters.sort === "title") {
+    results.sort((a, b) => a.title.localeCompare(b.title));
+  } else if (filters.sort === "newest") {
+    results.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+  } else if (filters.sort === "oldest") {
+    results.sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
   }
+
+  const filterFields: {
+    key: keyof typeof initialFilters;
+    label: string;
+    options: { value: string; label: string }[];
+  }[] = [
+    {
+      key: "type",
+      label: "Type",
+      options: [
+        ...new Set(data.evidence.map((item) => item.type.toLowerCase())),
+      ].map((type) => ({ value: type, label: type })),
+    },
+    {
+      key: "person",
+      label: "Person",
+      options: data.people.map((person) => ({
+        value: person.id,
+        label: person.name,
+      })),
+    },
+    {
+      key: "location",
+      label: "Location",
+      options: data.locations.map((location) => ({
+        value: location.id,
+        label: location.name,
+      })),
+    },
+    {
+      key: "status",
+      label: "Status",
+      options: ["unreviewed", "reviewed", "flagged"].map((value) => ({
+        value,
+        label: value,
+      })),
+    },
+    {
+      key: "relevance",
+      label: "Relevance",
+      options: ["unknown", "relevant", "irrelevant"].map((value) => ({
+        value,
+        label: value,
+      })),
+    },
+    {
+      key: "sort",
+      label: "Sort",
+      options: [
+        { value: "original", label: "Original order" },
+        { value: "newest", label: "Newest first" },
+        { value: "oldest", label: "Oldest first" },
+        { value: "title", label: "Title" },
+      ],
+    },
+  ];
 
   return (
     <section>
@@ -85,30 +157,35 @@ export function EvidencePage({ data }: { data: DashboardData }) {
           value={search}
           onChange={(event) => setSearch(event.currentTarget.value)}
         />
-        <fieldset disabled>
-          <legend>Filters and sorting (Demo 7)</legend>
-          {[
-            ["Type", [...new Set(data.evidence.map((item) => item.type))]],
-            ["Person", data.people.map((person) => person.name)],
-            ["Location", data.locations.map((location) => location.name)],
-            ["Status", ["unreviewed", "reviewed", "flagged"]],
-            ["Relevance", ["unknown", "relevant", "irrelevant"]],
-            [
-              "Sort",
-              ["Original order", "Newest first", "Oldest first", "Title"],
-            ],
-          ].map(([label, options]) => (
-            <label key={label as string}>
+        <fieldset>
+          <legend>Filters and sorting</legend>
+          {filterFields.map(({ key, label, options }) => (
+            <label key={key}>
               {label}
-              <select defaultValue="">
-                <option value="">All / default</option>
-                {(options as string[]).map((option) => (
-                  <option key={option}>{option}</option>
+              <select
+                value={filters[key]}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setFilters((previous) => ({ ...previous, [key]: value }));
+                }}
+              >
+                {key !== "sort" && <option value="">All</option>}
+                {options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
               </select>
             </label>
           ))}
-          <button type="button" className="btn btn-secondary">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              setSearch("");
+              setFilters(initialFilters);
+            }}
+          >
             Clear filters
           </button>
         </fieldset>
@@ -121,7 +198,7 @@ export function EvidencePage({ data }: { data: DashboardData }) {
               className={`bookmark-btn${bookmarks.includes(item.id) ? " active" : ""}`}
               aria-label={`Toggle bookmark for ${item.title}`}
               aria-pressed={bookmarks.includes(item.id)}
-              onClick={() => toggleBookmark(item.id)}
+              onClick={() => onToggleBookmark(item.id)}
             >
               {bookmarks.includes(item.id) ? "★" : "☆"}
             </button>
