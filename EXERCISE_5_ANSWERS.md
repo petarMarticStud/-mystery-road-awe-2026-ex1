@@ -209,3 +209,41 @@ Diese Verbindung ist notwendig, um Demo 4 vollständig zu erfüllen, und nimmt d
 6. Den Stern wieder entfernen und beide Ansichten erneut besuchen: Zähler und Liste passen wieder zusammen.
 
 Self-Check erst nach eigener erfolgreicher Vorführung abhaken. Es wurden keine automatisierten Tests ergänzt.
+
+## Demo 5 — State zum nächsten gemeinsamen Owner anheben
+
+### Umsetzung und Stellen im Code
+
+Die funktionale Änderung war bereits in Demo 4 notwendig, damit alle Bookmark-Ableitungen dieselbe Quelle verwenden. Demo 5 dokumentiert und erklärt diesen vorhandenen Aufbau; es wird kein zweiter Bookmark-State angelegt.
+
+1. **Gemeinsamen Owner finden:** `App` rendert die Routen für `EvidencePage`, `Dashboard` und `WorkspacePage`. Keine dieser drei Ansichten ist Elternkomponente der anderen. `App` ist damit in unserem eigenen Komponentenbaum der nächste gemeinsame Owner.
+2. **State dort halten:** In `src/app/App.tsx` erstellt `const [data, setData] = useState<DashboardData | null>(null)` den State. Die Bookmarks sind darin `data.bookmarks`, kein separater Hook. Nach dem Laden setzt `setData(loadedData)` die Anfangswerte.
+3. **Änderung dort ausführen:** `toggleBookmark` in `App` ruft `setData((previous) => ...)` auf. Es erzeugt ein neues Bookmark-Array und gibt `{ ...previous, bookmarks }` zurück. Alle anderen Daten bleiben erhalten.
+4. **Nach unten reichen:** `App` übergibt `data={data}` an alle drei Ansichten. Evidence erhält zusätzlich `onToggleBookmark={toggleBookmark}`. Beim Klick ruft der Button `onToggleBookmark(item.id)` auf.
+5. **Nur ableiten:** Evidence liest `data.bookmarks`, Dashboard verwendet deren Länge und Workspace filtert die Evidence-Liste nach diesen IDs. Keine Ansicht hält eine eigene Bookmark-Kopie als State.
+
+### Frage 1: Was bedeutet „lifting state up“ mechanisch?
+
+**Vorher:** In Demo 3 lag `useState<readonly string[]>(...)` innerhalb von `EvidencePage`. Nur diese Ansicht konnte ihre Bookmark-Änderungen sehen. Dashboard und Workspace lasen weiterhin die Anfangswerte aus `App`. Beim Verlassen der Evidence-Route wurde deren lokaler State außerdem verworfen.
+
+**Jetzt:** Der lokale Bookmark-Hook wurde entfernt. Wir nutzen `data.bookmarks` im bereits vorhandenen State von `App`. Auch die Toggle-Funktion wurde nach `App` verschoben. Daten fließen über Props nach unten; der Button ruft einen Callback auf, damit der Owner den State aktualisiert.
+
+**Unterschied zu Vanilla JS:** Dort lag der Zustand im importierten veränderlichen `state`-Objekt; anschließend musste die passende Ansicht manuell neu gerendert werden. Jetzt besitzt eine React-Komponente den State und aktualisiert ihn über ihren Setter. React rendert mit den geänderten Props.
+
+### Frage 2: Was wäre bei eigenem Bookmark-State pro Ansicht falsch?
+
+Beispiel: Alle drei Ansichten starten mit `["E01"]`. Du setzt in Evidence zusätzlich `E02`. Dann enthält nur deren lokaler State `["E01", "E02"]`. Der Dashboard-State enthält weiterhin `["E01"]` und zeigt 1 statt 2. Auch die Workspace-Kopie kennt `E02` nicht.
+
+Ein State-Initializer wie `useState(data.bookmarks)` hält keine automatische Verbindung zu späteren Prop-Änderungen. Er setzt nur den Anfangswert. Man müsste die drei Kopien zusätzlich synchronisieren und könnte dabei Aktualisierungen vergessen. Beim Aushängen einer Route könnte lokaler, ungespeicherter State zudem verloren gehen.
+
+Mit einem gemeinsamen Owner gibt es nur eine maßgebliche Bookmark-Liste. Daher müssen die Ansichten keine eigenen Listen miteinander abgleichen. `App` bleibt während der Navigation bestehen; beim erneuten Rendern liest das Dashboard die aktuelle Anzahl.
+
+### Live prüfen: Evidence → Dashboard → Workspace
+
+1. Dashboard öffnen und Bookmark-Anzahl merken.
+2. In Evidence ein bisher nicht markiertes Item bookmarken.
+3. Über die Navigation zum Dashboard wechseln, ohne die Seite neu zu laden: Die Anzahl muss um eins steigen.
+4. Workspace öffnen: Das Item muss in der Liste stehen.
+5. In Evidence den Bookmark entfernen und erneut beide Ansichten öffnen: Anzahl und Liste müssen entsprechend zurückgehen.
+
+Die gemeinsame Quelle und die Prop-Verbindungen wurden im Code geprüft. Die Browser-Demonstration ist damit nicht als durchgeführt behauptet; das Self-Check-Kästchen bleibt bis zur eigenen Vorführung offen. Demo 5 ergänzt die Dokumentation in dieser Datei und in `ARCHITECTURE-md`; eine erneute Änderung der bereits in Demo 4 implementierten Logik ist nicht nötig.

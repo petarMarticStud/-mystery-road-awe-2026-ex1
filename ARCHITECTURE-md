@@ -30,3 +30,20 @@ Beispiele:
 Die Ordnerzugehörigkeit richtet sich nach dem fachlichen Bereich.
 Die Einordnung als presentational oder container beschreibt
 dagegen die Verantwortung einer Komponente.
+
+## Bookmark-State: gemeinsamer Owner (Exercise 5, Demo 5)
+
+`App` ist der nächste gemeinsame Owner von Evidence, Dashboard und Workspace.
+Die Bookmark-IDs liegen ausschließlich in `data.bookmarks` im `useState` von
+`App`. Es gibt keinen zusätzlichen Bookmark-State in den drei Ansichten.
+
+- `App → EvidencePage`: Daten und `onToggleBookmark` als Props.
+  Der Button meldet die ID nach oben; `App` aktualisiert den State unveränderlich.
+- `App → Dashboard → DashboardStatistics`: Aus den IDs wird die Anzahl berechnet.
+- `App → WorkspacePage`: Aus Evidence-Daten und IDs wird die Bookmark-Liste berechnet.
+
+Beim Navigieren bleibt `App` bestehen. Deshalb erhalten erneut gerenderte
+Ansichten die aktuellen Bookmarks. Ein Neuladen der gesamten Seite ist dagegen
+ein Neustart des States; Bookmark-Persistenz ist noch nicht ergänzt.
+Suche, Filterauswahl und Hypothesenfelder bleiben in ihren jeweiligen Ansichten,
+weil die anderen Ansichten diese Eingaben nicht benötigen.
