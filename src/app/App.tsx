@@ -10,6 +10,7 @@ import { PersonDetailPage } from "../features/people-locations/PersonDetailPage"
 import { TimelinePage } from "../features/timeline/TimelinePage";
 import { EvidencePage } from "../features/evidence/EvidencePage";
 import { WorkspacePage } from "../features/workspace/WorkspacePage";
+import { BookmarksContext } from "../features/evidence/BookmarksContext";
 
 export default function App() {
   // App bleibt beim Navigieren bestehen und behaelt deshalb die Daten.
@@ -66,7 +67,12 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <BookmarksContext.Provider
+      value={{
+        bookmarks: data?.bookmarks ?? [],
+        onToggleBookmark: toggleBookmark,
+      }}
+    >
       <header className="app-header">
         <div className="header-inner">
           <div className="brand">
@@ -236,7 +242,6 @@ export default function App() {
               ) : (
                 <EvidencePage
                   data={data}
-                  onToggleBookmark={toggleBookmark}
                   onChangeStatus={changeEvidenceStatus}
                 />
               )
@@ -259,6 +264,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>
-    </>
+    </BookmarksContext.Provider>
   );
 }

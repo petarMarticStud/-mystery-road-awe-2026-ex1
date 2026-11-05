@@ -354,3 +354,44 @@ Bei unserem Hypothesenformular aus Demo 2 bleibt useState passend: Dort aktualis
 5. Im Code die drei switch-Fälle in `filterReducer.ts` und die zugehörigen Dispatch-Aufrufe in `EvidencePage.tsx` zeigen.
 
 Die Browser-Vorführung bleibt zur eigenen Prüfung offen. Es wurden keine automatisierten Tests ergänzt.
+
+## Demo 8 — Bookmark-Context
+
+### Umsetzung
+
+- `src/features/evidence/BookmarksContext.ts`: `createContext` beschreibt die bereitgestellten Werte: Bookmark-IDs und Toggle-Callback. Der eigene Hook `useBookmarks()` ruft `useContext` auf. Außerhalb des Providers meldet er einen Fehler statt unbemerkt mit falschen Standarddaten zu arbeiten.
+- `App.tsx`: Der Provider stellt `data.bookmarks` und `toggleBookmark` für seine Nachfahren bereit. Der tatsächliche State und sein Setter bleiben in `App`. Während des Ladens ist die bereitgestellte Liste leer; die Ansichten selbst warten weiterhin auf die Daten.
+- `EvidencePage.tsx`: `useBookmarks()` liefert die IDs für die Sterne und `onToggleBookmark` für deren Klicks. Der bisherige Callback-Prop wurde entfernt.
+- `Dashboard.tsx`: `useBookmarks()` liefert die IDs; deren Länge wird weiterhin als berechneter Wert an die darstellende `DashboardStatistics` übergeben.
+- `WorkspacePage.tsx`: Die Bookmark-Liste wird aus Evidence-Daten und den Context-IDs abgeleitet.
+- Die Daten-Props dieser drei Ansichten verwenden `Omit<DashboardData, "bookmarks">`. Damit ist der Bookmark-Zugriff über `data.bookmarks` dort nicht mehr Teil der typisierten Schnittstelle. `Omit` entfernt zur Laufzeit keine Eigenschaften; die Verbraucher lesen die Bookmarks ausschließlich aus Context.
+
+Der Review-Status-Callback bleibt ein Prop. Such-/Filter-State und Hypothesenformular bleiben lokal. Context ergänzt keine Persistenz und erzeugt keinen zweiten Bookmark-State. Die Beschreibungen in Demo 4–6 zeigen den vorherigen Weg über Props.
+
+### Frage 1: Was löst Context, und was löst es nicht?
+
+Context transportiert Werte zu Nachfahren, ohne dass jede Zwischenkomponente sie über Props weiterreichen muss. Ein Verbraucher ruft `useBookmarks()` auf und erhält den Wert des nächsten passenden Providers über ihm im React-Baum.
+
+Context verwaltet aber nicht selbst den State. Dafür verwenden wir weiterhin `useState` in `App` und den Toggle-Callback. Context speichert nichts in localStorage, kopiert keine Arrays und verhindert keine Mutation. Er liefert auch nicht automatisch feine Abonnements für einzelne Felder: Ändert sich der bereitgestellte Wert, werden die lesenden Komponenten aktualisiert. Unser Provider erzeugt beim Rendern ein neues Wertobjekt; deshalb können auch andere App-Updates diese Verbraucher erneut rendern. Für diese kleine App ist das vertretbar.
+
+### Frage 2: War Prop Drilling hier tatsächlich ein Problem?
+
+Nein, bisher überquerte der Bookmark-Callback nur `App → EvidencePage`. Das war überschaubar. Dashboard und Workspace bekamen die Daten ebenfalls direkt von `App`. Es gab keine lange Kette von Komponenten, die Daten ohne eigene Verwendung weiterreichen mussten.
+
+Die ehrliche Entscheidung für die aktuelle Größe wäre: Lifting plus Props ist ausreichend und macht Abhängigkeiten direkt an der Komponentenschnittstelle sichtbar. Context wird hier umgesetzt, weil die Aufgabe es verlangt und damit wir den Mechanismus praktisch zeigen können. Bei mehreren weit entfernten Verbrauchern mit vielen reinen Weiterreichern würde der Nutzen wachsen. Eine feste Anzahl von Ebenen allein entscheidet das nicht.
+
+### Frage 3: Kann das unnötig globaler State sein?
+
+Ja, wenn wir beliebige lokale Eingaben in einen appweiten Context legen, obwohl nur eine Ansicht sie braucht. Dann werden Daten breiter verfügbar als nötig, Abhängigkeiten weniger sichtbar und Komponenten stärker an den Provider gebunden.
+
+Unser Context gilt nur unter seinem Provider, ist also keine beliebig importierbare globale State-Variable. Trotzdem umfasst er fast die gesamte App. Bei Bookmarks ist das begründbar, weil drei Ansichten sie benötigen. Bei Suche, geöffneten Details oder Hypothesenfeldern wäre dieser Umfang derzeit unnötig. Auch beim Bookmark-Context bleibt der zusätzliche Aufbau gegenüber den bisherigen Props für diese kleine App diskutabel.
+
+### Live vorführen
+
+1. In `App` den Provider und den weiterhin dort lebenden State zeigen.
+2. In Evidence `useBookmarks()` zeigen: Es gibt keinen `onToggleBookmark`-Prop mehr.
+3. Einen Stern setzen, Dashboard und Workspace besuchen: Zähler und Liste müssen dieselbe Änderung zeigen.
+4. Den Stern entfernen und beide Ansichten erneut prüfen.
+5. Review-Status und Suchfilter weiterhin bedienen: Diese Interaktionen verwenden ihre bisherigen eigenen Wege.
+
+Browser-Vorführung noch offen; Self-Check erst nach eigener Prüfung abhaken.

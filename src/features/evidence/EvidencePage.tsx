@@ -3,6 +3,7 @@ import type { DashboardData } from "../../dashboardData";
 import type { Evidence } from "../../../modules/domain";
 import { loadNotes } from "./notes";
 import { filterReducer, initialFilters } from "./filterReducer";
+import { useBookmarks } from "./BookmarksContext";
 
 function EvidenceNote({ evidence }: { evidence: Evidence }) {
   const [notes, setNotes] = useState(loadNotes);
@@ -48,23 +49,17 @@ function EvidenceNote({ evidence }: { evidence: Evidence }) {
 }
 
 interface EvidencePageProps {
-  data: DashboardData;
-  onToggleBookmark: (id: string) => void;
+  data: Omit<DashboardData, "bookmarks">;
   onChangeStatus: (id: string, status: string) => void;
 }
 
-export function EvidencePage({
-  data,
-  onToggleBookmark,
-  onChangeStatus,
-}: EvidencePageProps) {
+export function EvidencePage({ data, onChangeStatus }: EvidencePageProps) {
   const [filters, dispatch] = useReducer(filterReducer, initialFilters);
-  const bookmarks = data.bookmarks;
+  const { bookmarks, onToggleBookmark } = useBookmarks();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = data.evidence.find((item) => item.id === selectedId);
   const term = filters.search.trim().toLowerCase();
-  const results = data.evidence.filter
-  (
+  const results = data.evidence.filter(
     (item) =>
       [item.title, item.summary, ...item.tags].some((text) =>
         text.toLowerCase().includes(term),

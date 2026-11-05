@@ -3,8 +3,14 @@ import type { DashboardData } from "../../dashboardData";
 import { loadNotes } from "../evidence/notes";
 import { loadHypothesis } from "./hypothesis";
 import type { Hypothesis } from "./hypothesis";
+import { useBookmarks } from "../evidence/BookmarksContext";
 
-export function WorkspacePage({ data }: { data: DashboardData }) {
+export function WorkspacePage({
+  data,
+}: {
+  data: Omit<DashboardData, "bookmarks">;
+}) {
+  const { bookmarks } = useBookmarks();
   const [notes] = useState(loadNotes);
   const [hypothesis, setHypothesis] = useState(loadHypothesis);
   const [saveMessage, setSaveMessage] = useState("");
@@ -32,7 +38,7 @@ export function WorkspacePage({ data }: { data: DashboardData }) {
     }
   }
   const bookmarked = data.evidence.filter((item) =>
-    data.bookmarks.includes(item.id),
+    bookmarks.includes(item.id),
   );
   const noted = data.evidence.filter((item) => notes[item.id]);
 

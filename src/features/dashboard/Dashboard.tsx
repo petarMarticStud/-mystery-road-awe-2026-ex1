@@ -3,6 +3,7 @@ import type { Evidence, TimelineEvent } from "../../../modules/domain";
 import { formatDate, statusBadgeClass } from "../../../modules/helpers";
 import {Badge} from "../../components/Badge";
 import { DashboardStatistics } from "./DashboardStatistics";
+import { useBookmarks } from "../evidence/BookmarksContext";
 
 
 interface CaseSummaryProps {
@@ -18,7 +19,7 @@ interface RecentTimelineProps {
 }
 
 interface DashboardProps {
-  data: DashboardData;
+  data: Omit<DashboardData, "bookmarks">;
 }
 
 function CaseSummary({ caseInfo }: CaseSummaryProps) {
@@ -81,6 +82,7 @@ function RecentTimeline({ timeline }: RecentTimelineProps) {
 }
 
 export default function Dashboard({ data }: DashboardProps) {
+  const { bookmarks } = useBookmarks();
   return (
     <section>
       <h2>Dashboard</h2>
@@ -91,7 +93,7 @@ export default function Dashboard({ data }: DashboardProps) {
         evidence={data.evidence}
         peopleCount={data.people.length}
         locationsCount={data.locations.length}
-        bookmarksCount={data.bookmarks.length}
+        bookmarksCount={bookmarks.length}
       />
 
       <div className="dashboard-columns">

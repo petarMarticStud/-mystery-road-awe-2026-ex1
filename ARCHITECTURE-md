@@ -33,6 +33,12 @@ dagegen die Verantwortung einer Komponente.
 
 ## Bookmark-State: gemeinsamer Owner (Exercise 5, Demo 5)
 
+Seit Demo 8 ersetzt `BookmarksContext` den unten beschriebenen Bookmark-Transport
+über Props. `App` bleibt State-Owner und stellt IDs und Toggle-Callback per
+Provider bereit. Evidence, Dashboard und Workspace lesen sie mit `useBookmarks()`.
+Der Review-Status-Callback bleibt ein Prop. Context erhält keinen eigenen State.
+Der folgende Abschnitt beschreibt den Ausgangspunkt aus Demo 5.
+
 `App` ist der nächste gemeinsame Owner von Evidence, Dashboard und Workspace.
 Die Bookmark-IDs liegen ausschließlich in `data.bookmarks` im `useState` von
 `App`. Es gibt keinen zusätzlichen Bookmark-State in den drei Ansichten.
