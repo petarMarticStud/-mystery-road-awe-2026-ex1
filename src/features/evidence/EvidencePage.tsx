@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useReducer, useState } from "react";
 import type { DashboardData } from "../../dashboardData";
 import type { Evidence } from "../../../modules/domain";
 import { loadNotes } from "./notes";
+import { filterReducer, initialFilters } from "./filterReducer";
 
 function EvidenceNote({ evidence }: { evidence: Evidence }) {
   const [notes, setNotes] = useState(loadNotes);
@@ -46,15 +47,6 @@ function EvidenceNote({ evidence }: { evidence: Evidence }) {
   );
 }
 
-const initialFilters = {
-  type: "",
-  person: "",
-  location: "",
-  status: "",
-  relevance: "",
-  sort: "original",
-};
-
 interface EvidencePageProps {
   data: DashboardData;
   onToggleBookmark: (id: string) => void;
@@ -66,13 +58,13 @@ export function EvidencePage({
   onToggleBookmark,
   onChangeStatus,
 }: EvidencePageProps) {
-  const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState(initialFilters);
+  const [filters, dispatch] = useReducer(filterReducer, initialFilters);
   const bookmarks = data.bookmarks;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = data.evidence.find((item) => item.id === selectedId);
-  const term = search.trim().toLowerCase();
-  const results = data.evidence.filter(
+  const term = filters.search.trim().toLowerCase();
+  const results = data.evidence.filter
+  (
     (item) =>
       [item.title, item.summary, ...item.tags].some((text) =>
         text.toLowerCase().includes(term),
@@ -95,7 +87,7 @@ export function EvidencePage({
   }
 
   const filterFields: {
-    key: keyof typeof initialFilters;
+    key: Exclude<keyof typeof initialFilters, "search">;
     label: string;
     options: { value: string; label: string }[];
   }[] = [
@@ -159,8 +151,14 @@ export function EvidencePage({
           id="evidence-search"
           type="search"
           placeholder="Search by title, summary, or tag"
-          value={search}
-          onChange={(event) => setSearch(event.currentTarget.value)}
+          value={filters.search}
+          onChange={(event) =>
+            dispatch({
+              type: "SET_FILTER",
+              field: "search",
+              value: event.currentTarget.value,
+            })
+          }
         />
         <fieldset>
           <legend>Filters and sorting</legend>
@@ -171,7 +169,11 @@ export function EvidencePage({
                 value={filters[key]}
                 onChange={(event) => {
                   const value = event.currentTarget.value;
-                  setFilters((previous) => ({ ...previous, [key]: value }));
+                  if (key === "sort") {
+                    dispatch({ type: "SET_SORT", value });
+                  } else {
+                    dispatch({ type: "SET_FILTER", field: key, value });
+                  }
                 }}
               >
                 {key !== "sort" && <option value="">All</option>}
@@ -186,10 +188,7 @@ export function EvidencePage({
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => {
-              setSearch("");
-              setFilters(initialFilters);
-            }}
+            onClick={() => dispatch({ type: "CLEAR_FILTERS" })}
           >
             Clear filters
           </button>

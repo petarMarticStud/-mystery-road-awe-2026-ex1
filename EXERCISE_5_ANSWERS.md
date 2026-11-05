@@ -293,3 +293,64 @@ Das ist für diese App noch überschaubar. Es gibt keine lange Kette von Zwische
 5. Optional Statusfilter auf Unreviewed stellen und ein angezeigtes Item in den Details auf Reviewed ändern: Es verschwindet aus der Ergebnisliste. Die offene Detailansicht bleibt absichtlich erhalten, da sie über die ausgewählte ID aus der vollständigen Liste abgeleitet wird.
 
 Die Browser-Vorführung ist noch offen. Self-Check erst nach eigener Demonstration abhaken.
+
+## Demo 7 — useReducer für Suche, Filter und Sortierung
+
+### Schritt 1: Eine gemeinsame State-Domäne bilden
+
+In `src/features/evidence/filterReducer.ts` beschreibt `EvidenceFilters` alle sieben Werte: search, type, person, location, status, relevance und sort. `initialFilters` definiert ihre Anfangswerte.
+
+In `EvidencePage.tsx` ersetzt `const [filters, dispatch] = useReducer(filterReducer, initialFilters)` die bisherigen zwei State-Hooks für Suche und Filterobjekt. Der State für ausgewählte Evidence und die Notiz bleibt davon unabhängig. Die Ergebnisliste wird weiterhin beim Rendern abgeleitet, nicht im Reducer gespeichert.
+
+### Schritt 2: Aktionen senden statt Setter aufrufen
+
+```tsx
+// Suchtext oder einen Filter ändern:
+dispatch({ type: "SET_FILTER", field: "search", value: "robot" });
+
+// Sortierung ändern:
+dispatch({ type: "SET_SORT", value: "title" });
+
+// Alles zurücksetzen:
+dispatch({ type: "CLEAR_FILTERS" });
+```
+
+`dispatch` übermittelt die Aktion an React. React ruft den Reducer mit dem aktuellen State und dieser Aktion auf. Der Reducer gibt den nächsten State zurück; die Komponente rendert mit ihm erneut. Die Eingabeelemente bleiben kontrolliert, beispielsweise durch `value={filters.search}`. Der Reducer verändert keine bisherigen Objekte und führt weder Speicherung noch DOM-Zugriffe aus.
+
+### Frage 1: Warum passt useReducer hier besser als viele useState-Aufrufe?
+
+Die sieben Werte beschreiben gemeinsam, welche Evidence angezeigt wird. Sie lassen sich einzeln ändern, müssen beim Reset aber gemeinsam auf die definierten Anfangswerte zurückkehren. Ein Reducer bündelt diese Änderungsregeln an einer Stelle. Die Handler in der Oberfläche melden nur noch, was passiert ist.
+
+Konkret war unser vorheriger Stand bereits überschaubar: ein State für Suche und ein gemeinsames Filterobjekt. Der neue Vorteil ist daher vor allem die einheitliche Behandlung aller sieben Werte sowie die ausdrückliche Trennung zwischen UI-Events und Update-Logik. useState wäre weiterhin korrekt; useReducer ist hier eine Strukturierungsentscheidung und kein notwendiger Performance-Trick.
+
+### Frage 2: Wie funktioniert CLEAR_FILTERS und warum ist das einfacher?
+
+```tsx
+case "CLEAR_FILTERS":
+  return { ...initialFilters };
+```
+
+Ein Dispatch setzt Suche, fünf Filter und Sortierung zurück. Der Reducer erzeugt ein neues Objekt aus den zentral definierten Anfangswerten. Die Oberfläche muss keine Liste einzelner Setter-Aufrufe kennen und kann nicht beispielsweise die Suche oder Sortierung beim Reset vergessen.
+
+Auch mehrere useState-Updates in einem Event kann React bündeln. Der Vorteil des Reducers ist hier die zentrale, vollständige Reset-Regel, nicht die Behauptung, einzelne Setter würden zwangsläufig sichtbare Zwischenzustände erzeugen. Ein neues Filterfeld muss weiterhin korrekt in Typ und Anfangswerten ergänzt werden.
+
+### Frage 3: Ist useReducer grundsätzlich anders als useState?
+
+Beide verwalten React-State und lösen bei einem geänderten State ein erneutes Rendern aus. Beide erlauben unveränderliche Updates. Der Unterschied liegt darin, wie wir die Änderung ausdrücken:
+
+- `useState`: Wir übergeben den nächsten Wert oder eine Funktion, die ihn aus dem vorherigen Wert berechnet.
+- `useReducer`: Wir übergeben eine Aktion. Eine zentrale Reducer-Funktion berechnet daraus und aus dem vorherigen State den nächsten Wert.
+
+Konzeptionell lässt sich useState als einfacher Spezialfall derselben Idee verstehen: Die Aktion ist der neue Wert oder die Update-Funktion; ein einfacher Reducer übernimmt den Wert bzw. wendet die Funktion an. Das erklärt die Verwandtschaft der Modelle, ohne eine bestimmte interne Implementierung von React vorauszusetzen.
+
+Bei unserem Hypothesenformular aus Demo 2 bleibt useState passend: Dort aktualisieren wir im Wesentlichen Felder und speichern das Objekt. Bei den Evidence-Filtern dokumentieren benannte Aktionen zusätzlich die zusammenhängenden Regeln wie Sortieren und vollständiges Zurücksetzen.
+
+### Live vorführen
+
+1. Suchtext eingeben: `SET_FILTER` ändert `filters.search` und die Ergebnisliste reagiert.
+2. Mehrere Filter wählen: Andere ausgewählte Werte bleiben jeweils erhalten.
+3. Sortierung wählen: `SET_SORT` verändert nur die Sortierung.
+4. Clear filters klicken: Alle sieben Werte kehren zu den Anfangswerten zurück; die vollständige Liste erscheint in Originalreihenfolge.
+5. Im Code die drei switch-Fälle in `filterReducer.ts` und die zugehörigen Dispatch-Aufrufe in `EvidencePage.tsx` zeigen.
+
+Die Browser-Vorführung bleibt zur eigenen Prüfung offen. Es wurden keine automatisierten Tests ergänzt.
