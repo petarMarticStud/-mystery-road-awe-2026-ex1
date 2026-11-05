@@ -11,11 +11,21 @@ import { TimelinePage } from "../features/timeline/TimelinePage";
 import { EvidencePage } from "../features/evidence/EvidencePage";
 import { WorkspacePage } from "../features/workspace/WorkspacePage";
 import { BookmarksContext } from "../features/evidence/BookmarksContext";
+import { loadNotes } from "../features/evidence/notes";
+import { loadHypothesis } from "../features/workspace/hypothesis";
 
 export default function App() {
   // App bleibt beim Navigieren bestehen und behaelt deshalb die Daten.
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notes, setNotes] = useState(loadNotes);
+  const [hypothesis, setHypothesis] = useState(loadHypothesis);
+
+  function saveNote(id: string, text: string) {
+    const nextNotes = { ...notes, [id]: text };
+    localStorage.setItem("remotion_notes", JSON.stringify(nextNotes));
+    setNotes(nextNotes);
+  }
 
   function toggleBookmark(id: string) {
     setData((previous) => {
@@ -243,6 +253,8 @@ export default function App() {
                 <EvidencePage
                   data={data}
                   onChangeStatus={changeEvidenceStatus}
+                  notes={notes}
+                  onSaveNote={saveNote}
                 />
               )
             }
@@ -256,7 +268,12 @@ export default function App() {
               ) : data === null ? (
                 <p>Loading data…</p>
               ) : (
-                <WorkspacePage data={data} />
+                <WorkspacePage
+                  data={data}
+                  notes={notes}
+                  hypothesis={hypothesis}
+                  onChangeHypothesis={setHypothesis}
+                />
               )
             }
           />

@@ -395,3 +395,50 @@ Unser Context gilt nur unter seinem Provider, ist also keine beliebig importierb
 5. Review-Status und Suchfilter weiterhin bedienen: Diese Interaktionen verwenden ihre bisherigen eigenen Wege.
 
 Browser-Vorführung noch offen; Self-Check erst nach eigener Prüfung abhaken.
+
+## Demo 9 — State-Probleme prüfen und beheben
+
+### Fix 1: Mehrere unabhängige Kopien gespeicherter Notizen
+
+**Kategorie:** Duplizierter State.
+
+**Gefunden durch Code-Review:** `EvidenceNote` hielt mit `useState(loadNotes)` jeweils eine vollständige Kopie aller gespeicherten Notizen. Workspace hielt mit demselben Initializer noch eine eigene Kopie. Die Komponenten besaßen damit unabhängige React-Snapshots derselben gespeicherten Fakten. `localStorage.setItem` aktualisiert andere React-States nicht automatisch. In der bisherigen UI verdeckte das erneute Einlesen beim Route-/Editor-Wechsel das Problem weitgehend; es wurde kein beobachteter Browserfehler behauptet.
+
+**Änderung:** Nur `App` hält jetzt `notes` und lädt sie beim Initialisieren. `saveNote(id, text)` in `App` erstellt eine neue Map, schreibt sie in localStorage und aktualisiert nach erfolgreichem Schreiben den State. Workspace erhält die Map als Prop; Evidence erhält sie zusammen mit dem Callback. Der einzelne Editor erhält nur seine gespeicherte Notiz und den Callback. Er speichert keine zusätzliche vollständige Notiz-Map mehr.
+
+Der lokale Editor-Text ist bewusst weiterhin eigener State: Ein ungespeicherter Entwurf und die zuletzt gespeicherte Notiz sind unterschiedliche Fakten. Die gespeicherte Vorschau liest den Prop-Wert. Der Callback wirft bei einem Speicherfehler; der bestehende try/catch im Editor zeigt dann die Fehlermeldung und der gespeicherte State bleibt unverändert. Synchronisation zwischen mehreren Browser-Tabs ist nicht implementiert.
+
+### Fix 2: Hypothesenentwurf ging bei Navigation verloren
+
+**Kategorie:** Veralteter State durch falsche Lebensdauer/State-Ownership.
+
+**Gefunden durch Code-Review:** `useState(loadHypothesis)` lag im Workspace. Wenn der Benutzer ohne Speichern zu Evidence und zurück wechselte, wurde Workspace ausgehängt und neu erstellt. Der Initializer las erneut den älteren gespeicherten Entwurf. Neu eingegebener Text war verloren. Dieser Zwischenstand war in Demo 2 ausdrücklich dokumentiert; in Demo 9 wird er verbessert.
+
+**Änderung:** Der laufende Hypothesen-State liegt jetzt in `App`, das bei Navigation bestehen bleibt. Workspace erhält `hypothesis` und `onChangeHypothesis` als Props. Ein Eingabe-Handler erzeugt ein neues Objekt und meldet es an den Owner. Die Save-Aktion bleibt ausdrücklich nötig, um den Entwurf dauerhaft in localStorage zu schreiben. Navigation erhält nun auch ungespeicherte Änderungen; ein vollständiges Neuladen verwirft weiterhin Änderungen seit dem letzten Speichern.
+
+### Prüfung aller fünf Kategorien
+
+| Kategorie | Ergebnis |
+|---|---|
+| Duplizierter State | Separate Notiz-Maps entfernt. Ergebnislisten, Bookmark-Zähler und Workspace-Bookmark-Liste bleiben berechnet. |
+| Veralteter State | Laufender Hypothesenentwurf überlebt jetzt den Route-Wechsel. Status und Bookmarks stammen weiterhin aus dem gemeinsamen Owner. |
+| Übermäßiges Prop Drilling | Bookmark-Context vorhanden. Der neue Save-Note-Callback läuft über `App → EvidencePage → EvidenceNote`: zwei überschaubare Grenzen. |
+| Unnötig globaler State | Notizen sind zwischen zwei Ansichten geteilt. Der Hypothesenentwurf liegt wegen seiner Lebensdauer in App, wird aber nur an Workspace gegeben. Kein zusätzlicher appweiter Context. Filter und Editor-Entwurf bleiben lokal. |
+| Direkte Mutation | Bookmark-Toggle erstellt neue Arrays. Statusänderung nutzt map und ein neues Item-Objekt. Sortiert wird nur das von filter neu erstellte Ergebnisarray. Notiz- und Hypothesenupdates erstellen neue Objekte. |
+
+### Frage 1: Welche Probleme wurden behoben, und wie wurden sie bemerkt?
+
+Die zwei konkreten Fälle stehen oben: duplizierte Notiz-Snapshots und der nach Navigation durch einen älteren Speicherstand ersetzte Hypothesenentwurf. Beide wurden durch Lesen der State-Initializer, Update-Wege und Route-Lebensdauer gefunden, nicht durch eine behauptete DevTools- oder Browser-Beobachtung. Im zweiten Fall ist der genauere technische Fehler falsches State-Ownership mit Datenverlust; unter den fünf vorgegebenen Kategorien passt das Zurückfallen auf veraltete Daten am ehesten zu stale state.
+
+### Frage 2: Welche Kategorie zeigt die Geschichte der Vanilla-App besonders deutlich?
+
+Der veraltete Dashboard-Bookmark-Zähler ist ein klares Beispiel für stale state bzw. veraltete Darstellung: Die Bookmarks änderten sich, aber das Dashboard wurde nur beim ersten Besuch aufgebaut. Zusätzlich zeigte der Sortierfehler eine Mutation über eine gemeinsame Array-Referenz. Man sollte diese zwei Fehler nicht als dieselbe Ursache darstellen. Gemeinsame Bookmark-Quelle plus abgeleitete Anzeige verhindert das erste Problem; ein neues Ergebnisarray vor dem Sortieren verhindert das zweite.
+
+### Live vorführen
+
+1. Evidence E01 öffnen, Notiz speichern; E02 öffnen und ebenfalls speichern. Workspace muss beide Texte zeigen. E01 erneut bearbeiten: Der Text von E02 muss erhalten bleiben.
+2. Hypothesenformular ändern, bewusst nicht speichern. Zu Evidence und wieder zu Workspace wechseln: Alle Eingaben müssen erhalten bleiben.
+3. Entwurf speichern und Seite neu laden: Gespeicherte Werte werden wiederhergestellt.
+4. Eine weitere Änderung ohne Speichern machen und vollständig neu laden: Erwartungsgemäß erscheint wieder der zuletzt gespeicherte Entwurf.
+
+Die früheren Demo-Beschreibungen zeigen die damaligen Zwischenstände. Browserprüfung noch offen; Self-Check erst nach eigener Vorführung abhaken.

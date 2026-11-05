@@ -1,25 +1,27 @@
 import { useState } from "react";
 import type { DashboardData } from "../../dashboardData";
-import { loadNotes } from "../evidence/notes";
-import { loadHypothesis } from "./hypothesis";
 import type { Hypothesis } from "./hypothesis";
 import { useBookmarks } from "../evidence/BookmarksContext";
 
 export function WorkspacePage({
   data,
+  notes,
+  hypothesis,
+  onChangeHypothesis,
 }: {
   data: Omit<DashboardData, "bookmarks">;
+  notes: Readonly<Record<string, string>>;
+  hypothesis: Hypothesis;
+  onChangeHypothesis: (hypothesis: Hypothesis) => void;
 }) {
   const { bookmarks } = useBookmarks();
-  const [notes] = useState(loadNotes);
-  const [hypothesis, setHypothesis] = useState(loadHypothesis);
   const [saveMessage, setSaveMessage] = useState("");
 
   function updateField<K extends keyof Hypothesis>(
     field: K,
     value: Hypothesis[K],
   ) {
-    setHypothesis((previous) => ({ ...previous, [field]: value }));
+    onChangeHypothesis({ ...hypothesis, [field]: value });
     setSaveMessage("");
   }
 

@@ -1,20 +1,24 @@
 import { useReducer, useState } from "react";
 import type { DashboardData } from "../../dashboardData";
 import type { Evidence } from "../../../modules/domain";
-import { loadNotes } from "./notes";
 import { filterReducer, initialFilters } from "./filterReducer";
 import { useBookmarks } from "./BookmarksContext";
 
-function EvidenceNote({ evidence }: { evidence: Evidence }) {
-  const [notes, setNotes] = useState(loadNotes);
-  const [text, setText] = useState(() => notes[evidence.id] ?? "");
+function EvidenceNote({
+  evidence,
+  savedNote,
+  onSaveNote,
+}: {
+  evidence: Evidence;
+  savedNote: string;
+  onSaveNote: (id: string, text: string) => void;
+}) {
+  const [text, setText] = useState(savedNote);
   const [message, setMessage] = useState("");
 
   function saveNote() {
-    const nextNotes = { ...notes, [evidence.id]: text };
     try {
-      localStorage.setItem("remotion_notes", JSON.stringify(nextNotes));
-      setNotes(nextNotes);
+      onSaveNote(evidence.id, text);
       setMessage("Note saved.");
     } catch {
       setMessage("The note could not be saved.");
@@ -43,7 +47,7 @@ function EvidenceNote({ evidence }: { evidence: Evidence }) {
       </button>
       <p role="status">{message}</p>
       <strong>Saved note preview</strong>
-      <p>{notes[evidence.id] || "No saved note yet."}</p>
+      <p>{savedNote || "No saved note yet."}</p>
     </div>
   );
 }
@@ -51,9 +55,16 @@ function EvidenceNote({ evidence }: { evidence: Evidence }) {
 interface EvidencePageProps {
   data: Omit<DashboardData, "bookmarks">;
   onChangeStatus: (id: string, status: string) => void;
+  notes: Readonly<Record<string, string>>;
+  onSaveNote: (id: string, text: string) => void;
 }
 
-export function EvidencePage({ data, onChangeStatus }: EvidencePageProps) {
+export function EvidencePage({
+  data,
+  onChangeStatus,
+  notes,
+  onSaveNote,
+}: EvidencePageProps) {
   const [filters, dispatch] = useReducer(filterReducer, initialFilters);
   const { bookmarks, onToggleBookmark } = useBookmarks();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -252,7 +263,12 @@ export function EvidencePage({ data, onChangeStatus }: EvidencePageProps) {
               <option value="flagged">Flagged</option>
             </select>
           </div>
-          <EvidenceNote key={selected.id} evidence={selected} />
+          <EvidenceNote
+            key={selected.id}
+            evidence={selected}
+            savedNote={notes[selected.id] ?? ""}
+            onSaveNote={onSaveNote}
+          />
         </section>
       )}
     </section>
