@@ -442,3 +442,38 @@ Der veraltete Dashboard-Bookmark-Zähler ist ein klares Beispiel für stale stat
 4. Eine weitere Änderung ohne Speichern machen und vollständig neu laden: Erwartungsgemäß erscheint wieder der zuletzt gespeicherte Entwurf.
 
 Die früheren Demo-Beschreibungen zeigen die damaligen Zwischenstände. Browserprüfung noch offen; Self-Check erst nach eigener Vorführung abhaken.
+
+## Demo 10 — Abschließende React-Prüfung
+
+### Prüfung und Änderung
+
+Alle fünf React-Ansichten und ihre Komponenten wurden auf direkte DOM-Zugriffe geprüft: Dashboard, People & Locations, Timeline, Evidence und Workspace. In den Ansichten gibt es keine DOM-Abfragen, manuell registrierten Listener, `innerHTML`, `classList` oder imperativ eingefügten Elemente. Darstellung und Klassen entstehen über JSX; Events verwenden React-Handler. DOM-Werte aus `event.currentTarget` zu lesen ist normales Event-Handling, keine manuelle Änderung der Oberfläche.
+
+Beim Re-Check wurde ein unvollständiger Timeline-Filter gefunden: Das Select hatte nur `defaultValue` und änderte den Filter noch nicht. Es ist jetzt kontrolliert durch den URL-Parameter `person`. `onChange` aktualisiert diesen mit `setSearchParams`; die sichtbaren Ereignisse werden daraus abgeleitet. „All people“ entfernt den Parameter. Andere vorhandene URL-Parameter bleiben erhalten. Zurück/Vorwärts im Browser kann die Filterauswahl wiederherstellen. Ein zusätzlicher lokaler Filter-State oder manuelle DOM-Anpassungen sind dafür nicht nötig.
+
+**Geltungsbereich der Aussage:** Im React-Einstieg `react.html → src/main.tsx → App` sind alle fünf Ansichten deklarativ umgesetzt. `main.tsx` verwendet einmalig `document.getElementById("root")`, um React mit `createRoot` einzuhängen. Dieser Bootstrap-Zugriff bleibt bestehen und ist keine manuelle View-Manipulation. Die separate Vanilla-Anwendung unter `index.html`, `app.js` und `modules/views.ts` enthält weiterhin absichtlich ihre ursprüngliche DOM-basierte Implementierung. Deshalb wäre „im ganzen Repository gibt es keinen DOM-Zugriff“ falsch. React lädt diese Vanilla-View-Handler nicht. Der bestehende Lade-Effect in App wurde weder neu eingeführt noch erweitert.
+
+### Frage 1: Welche Entscheidung bleibt diskutabel?
+
+Der Bookmark-Context ist für die aktuelle Größe nicht zwingend nötig. Vor seiner Einführung waren App und die drei Verbraucher direkt miteinander verbunden. Props hätten die Abhängigkeiten an den Schnittstellen sichtbar gehalten und weniger zusätzlichen Aufbau benötigt.
+
+Für Context spricht, dass die drei Ansichten denselben Zugriff auf IDs und Toggle-Aktion bekommen und spätere tiefere Verbraucher keine zusätzlichen Weiterreicher benötigen. Dagegen sprechen die nun implizite Provider-Abhängigkeit und die Aktualisierung aller Context-Verbraucher bei einem geänderten Provider-Wert. Für diese App wären beide Varianten vertretbar; Context wurde auch als geforderter Lernschritt umgesetzt. Er rechtfertigt nicht, alle lokalen Eingaben appweit verfügbar zu machen.
+
+### Frage 2: Welche ursprüngliche Fehlerklasse ist strukturell verhindert?
+
+Der veraltete Dashboard-Bookmark-Zähler aus Exercise 1: Damals konnte sich die Bookmark-Liste ändern, während das nur beim ersten Besuch aufgebaute Dashboard seinen alten Inhalt behielt.
+
+Jetzt gibt es genau eine Bookmark-Liste im React-State von App. Der Provider liefert sie an die Verbraucher. Dashboard berechnet die Anzahl direkt als `bookmarks.length`, ohne separaten Zähler-State und ohne First-Visit-Render-Flag. Beim nächsten Rendern kann es daher keinen separat gespeicherten alten Zähler anzeigen. Ein normaler Toggle über den Setter erzeugt neue Referenzen und liefert die aktualisierte Quelle.
+
+Auch der Sortierfehler über eine gemeinsame Array-Referenz wird durch unseren konkreten Code vermieden: `filter()` erzeugt immer ein neues Ergebnisarray, nur dieses wird sortiert. React allein verbietet Mutation allerdings nicht; man könnte den Fehler durch eine spätere direkte Mutation wieder einführen. Die Schutzwirkung folgt aus dem beschriebenen Aufbau.
+
+### Abschließende Live-Checkliste
+
+1. Dashboard öffnen; Daten und Statistik prüfen.
+2. People/Locations und ein Personenprofil über React-Routen öffnen.
+3. Timeline: Person auswählen und All people wählen; Liste und URL reagieren. Browser-Zurück prüft den vorherigen Filter.
+4. Evidence: Suche, Filter, Sortierung, Clear filters, Bookmark und Review-Status bedienen.
+5. Notiz speichern und im Workspace prüfen.
+6. Hypothesenentwurf ändern, weg- und zurücknavigieren; Entwurf bleibt erhalten. Speichern und vollständig neu laden; gespeicherter Stand wird wiederhergestellt.
+
+Der Quellcode-Sweep ist durchgeführt. Eine vollständige Browser-Vorführung aller fünf Ansichten wird damit nicht behauptet; sie bleibt zur eigenen Prüfung offen. Keine automatisierten Tests ergänzt, keine Self-Check-Kästchen stellvertretend abgehakt.

@@ -8,20 +8,15 @@ interface TimelinePageProps {
   people: Person[];
 }
 
-export function TimelinePage({
-  events,
-  people,
-}: TimelinePageProps) {
-  const [searchParams] = useSearchParams();
+export function TimelinePage({ events, people }: TimelinePageProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const personId = searchParams.get("person");
 
   const visibleEvents = personId
     ? events.filter((event) => event.personIds.includes(personId))
     : events;
 
-  const selectedPerson = people.find(
-    (person) => person.id === personId,
-  );
+  const selectedPerson = people.find((person) => person.id === personId);
 
   return (
     <Panel title="Timeline">
@@ -29,8 +24,17 @@ export function TimelinePage({
         <label>
           Person{" "}
           <select
-            key={personId ?? ""}
-            defaultValue={personId ?? ""}
+            value={personId ?? ""}
+            onChange={(event) => {
+              const next = new URLSearchParams(searchParams);
+              const value = event.currentTarget.value;
+              if (value) {
+                next.set("person", value);
+              } else {
+                next.delete("person");
+              }
+              setSearchParams(next);
+            }}
           >
             <option value="">All people</option>
 
@@ -45,8 +49,6 @@ export function TimelinePage({
             ))}
           </select>
         </label>
-
-        <p>Initial selection from the URL. Filter changes are not applied yet.</p>
       </div>
 
       {visibleEvents.length === 0 ? (
