@@ -247,3 +247,49 @@ Mit einem gemeinsamen Owner gibt es nur eine maßgebliche Bookmark-Liste. Daher 
 5. In Evidence den Bookmark entfernen und erneut beide Ansichten öffnen: Anzahl und Liste müssen entsprechend zurückgehen.
 
 Die gemeinsame Quelle und die Prop-Verbindungen wurden im Code geprüft. Die Browser-Demonstration ist damit nicht als durchgeführt behauptet; das Self-Check-Kästchen bleibt bis zur eigenen Vorführung offen. Demo 5 ergänzt die Dokumentation in dieser Datei und in `ARCHITECTURE-md`; eine erneute Änderung der bereits in Demo 4 implementierten Logik ist nicht nötig.
+
+## Demo 6 — Callbacks nach unten weitergeben
+
+### Schritt 1: Bookmark-Callback prüfen
+
+In `App.tsx` definiert `toggleBookmark` die Änderung und ruft den State-Setter `setData` auf. `App` gibt diese Funktion mit `onToggleBookmark={toggleBookmark}` an `EvidencePage` weiter. Der Stern-Button ruft `onToggleBookmark(item.id)` auf. Dieser Weg bestand bereits seit Demo 4. Dashboard und Workspace benötigen keinen Toggle-Callback, weil sie Bookmarks derzeit nur anzeigen.
+
+### Schritt 2: Zweite Interaktion hinzufügen: Review-Status
+
+In `App.tsx` ist `changeEvidenceStatus(id, status)` neu. Die Funktion aktualisiert mit `setData` das Evidence-Array: `map` erstellt ein neues Array, `{ ...item, status }` ein neues Objekt für das betroffene Item. Die anderen Items werden unverändert übernommen.
+
+`App` übergibt `onChangeStatus={changeEvidenceStatus}` an `EvidencePage`. Im Evidence-Detail steht jetzt ein kontrolliertes Select für unreviewed, reviewed und flagged. Sein `onChange` ruft `onChangeStatus(selected.id, event.currentTarget.value)` auf. Die Ansicht verändert weder `selected.status` direkt noch besitzt sie einen zweiten Status-State.
+
+Nach dem Update erhält Evidence die neuen Props. Der Detailwert und die Karte zeigen denselben Status; ein aktiver Statusfilter wird neu ausgewertet. Das Dashboard berechnet Reviewed-Anzahl und Fortschritt aus dem aktualisierten Evidence-Array. Statusänderungen bleiben beim Navigieren erhalten; beim vollständigen Neuladen werden wieder die JSON-Daten geladen. Status-Persistenz wurde nicht ergänzt.
+
+### Frage 1: Warum soll ein Kind den State des Vorfahren nicht direkt verändern?
+
+**React:** Der Hook-State gehört der Komponente, die `useState` aufruft. Ein Kind kann deren lokale Variable nicht einfach direkt ansprechen. Auch wenn es über Props eine Objekt-Referenz erhält, darf es diese nicht verändern: `selected.status = "reviewed"` würde bestehende Daten mutieren und keinen State-Setter aufrufen. React könnte die Anzeige deshalb unverändert lassen, während andere Stellen bereits mutierte Daten sehen.
+
+Der Callback gibt dem Kind stattdessen eine erlaubte Aktion: „Ändere den Status dieser ID“. Der Owner entscheidet, wie er den State aktualisiert. So bleibt die Update-Logik an einer Stelle, nutzt den Setter und erstellt neue Referenzen. Das Kind braucht den Aufbau des gesamten App-States nicht zu kennen.
+
+**Vanilla JS:** Funktionen konnten das importierte gemeinsame `state`-Objekt unmittelbar verändern und danach manuell rendern. In React ersetzt die Meldung per Callback diesen direkten Zugriff; der Owner aktualisiert den State, React aktualisiert daraus die Ansicht.
+
+### Frage 2: Einen Callback vollständig verfolgen — wie viele Ebenen?
+
+Beispiel Review-Status:
+
+1. **Definition in `App`:** `changeEvidenceStatus` enthält `setData((previous) => ...)`.
+2. **Übergabe:** `<EvidencePage onChangeStatus={changeEvidenceStatus} ... />`.
+3. **Empfang in `EvidencePage`:** `onChangeStatus` wird aus den Props entnommen.
+4. **Aufruf:** Der Select-Handler ruft `onChangeStatus(selected.id, event.currentTarget.value)` auf.
+5. **Update:** Die Funktion in `App` läuft und aktualisiert den State. Neue Props fließen wieder nach unten.
+
+Der Callback überquert **eine eigene Komponentengrenze: `App → EvidencePage`**. Das Select steht direkt im JSX von `EvidencePage`; ein DOM-Element ist keine weitere eigene Komponentenebene. Auch die Router-Komponenten reichen diesen Callback nicht selbst als fachliche Props durch.
+
+Das ist für diese App noch überschaubar. Es gibt keine lange Kette von Zwischenkomponenten, die den Callback nur weiterreichen. Prop Drilling ist hier deshalb aktuell kein ernstes Problem. Context wäre eher hilfreich, wenn viele weit entfernte Komponenten dieselben Daten/Aktionen benötigen und mehrere Zwischenkomponenten sie ausschließlich durchreichen. Demo 8 wird Context trotzdem als Übung umsetzen.
+
+### Live vorführen
+
+1. Einen Bookmark setzen und im Dashboard bzw. Workspace die gemeinsame Änderung prüfen.
+2. In Evidence Details eines unreviewed Items öffnen und Review status auf Reviewed ändern.
+3. Prüfen: Select und Karte zeigen Reviewed. Dashboard zeigt einen zusätzlichen Reviewed-Eintrag und berechnet den Fortschritt neu.
+4. Zurückkehren und auf Flagged ändern: Karte und Dashboard passen sich entsprechend an.
+5. Optional Statusfilter auf Unreviewed stellen und ein angezeigtes Item in den Details auf Reviewed ändern: Es verschwindet aus der Ergebnisliste. Die offene Detailansicht bleibt absichtlich erhalten, da sie über die ausgewählte ID aus der vollständigen Liste abgeleitet wird.
+
+Die Browser-Vorführung ist noch offen. Self-Check erst nach eigener Demonstration abhaken.

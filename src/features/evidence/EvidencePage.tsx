@@ -58,9 +58,14 @@ const initialFilters = {
 interface EvidencePageProps {
   data: DashboardData;
   onToggleBookmark: (id: string) => void;
+  onChangeStatus: (id: string, status: string) => void;
 }
 
-export function EvidencePage({ data, onToggleBookmark }: EvidencePageProps) {
+export function EvidencePage({
+  data,
+  onToggleBookmark,
+  onChangeStatus,
+}: EvidencePageProps) {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState(initialFilters);
   const bookmarks = data.bookmarks;
@@ -239,6 +244,20 @@ export function EvidencePage({ data, onToggleBookmark }: EvidencePageProps) {
           </button>
           <h3>{selected.title}</h3>
           <p>{selected.content}</p>
+          <div className="detail-field">
+            <label htmlFor="evidence-review-status">Review status</label>
+            <select
+              id="evidence-review-status"
+              value={selected.status.toLowerCase()}
+              onChange={(event) =>
+                onChangeStatus(selected.id, event.currentTarget.value)
+              }
+            >
+              <option value="unreviewed">Unreviewed</option>
+              <option value="reviewed">Reviewed</option>
+              <option value="flagged">Flagged</option>
+            </select>
+          </div>
           <EvidenceNote key={selected.id} evidence={selected} />
         </section>
       )}

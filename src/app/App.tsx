@@ -26,6 +26,18 @@ export default function App() {
     });
   }
 
+  function changeEvidenceStatus(id: string, status: string) {
+    setData((previous) => {
+      if (previous === null) return previous;
+      return {
+        ...previous,
+        evidence: previous.evidence.map((item) =>
+          item.id === id ? { ...item, status } : item,
+        ),
+      };
+    });
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -222,7 +234,11 @@ export default function App() {
               ) : data === null ? (
                 <p>Loading data…</p>
               ) : (
-                <EvidencePage data={data} onToggleBookmark={toggleBookmark} />
+                <EvidencePage
+                  data={data}
+                  onToggleBookmark={toggleBookmark}
+                  onChangeStatus={changeEvidenceStatus}
+                />
               )
             }
           />
