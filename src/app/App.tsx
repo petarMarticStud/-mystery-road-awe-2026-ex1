@@ -5,7 +5,8 @@ import type { DashboardData } from "../dashboardData";
 import { Panel } from "../components/Panel";
 import { PersonCard } from "../features/people-locations/PersonCard";
 import { LocationCard } from "../features/people-locations/LocationCard";
-import { Link, NavLink, Navigate, Route, Routes } from "react-router";
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router";
+import { EffectDemo } from "../components/EffectDemo";
 import { PersonDetailPage } from "../features/people-locations/PersonDetailPage";
 import { TimelinePage } from "../features/timeline/TimelinePage";
 import { EvidencePage } from "../features/evidence/EvidencePage";
@@ -15,6 +16,11 @@ import { loadNotes } from "../features/evidence/notes";
 import { loadHypothesis } from "../features/workspace/hypothesis";
 
 export default function App() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    document.title = `Project ReMotion – ${pathname}`;
+  }, [pathname]);
+
   // App bleibt beim Navigieren bestehen und behaelt deshalb die Daten.
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +122,7 @@ export default function App() {
         </div>
       </header>
       <main className="app-main react-main">
+        {import.meta.env.DEV && <EffectDemo />}
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
