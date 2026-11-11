@@ -77,7 +77,7 @@ often each one actually runs.
 
 **Tasks**
 
-- [ ] Implement at least one effect that sets up something needing cleanup (a `setTimeout`/
+- [ ] Implement at least one effect that sets up something needingcleanup (a `setTimeout`/
 `setInterval`, a `window` event listener, or similar) and returns a proper cleanup function.
 - [ ] Demonstrate what happens (e.g. via a console log in both the effect and its cleanup) when the component unmounts or the dependencies change, with and without the cleanup function present.
 

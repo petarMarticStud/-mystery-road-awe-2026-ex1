@@ -127,3 +127,62 @@ Kurz zum Vortragen: „React vergleicht die Werte im Array. Ändert sich einer, 
 Kurz zum Vortragen: „Ein direkter Aufruf läuft bei jedem Render. Ein Effect mit leerem Array läuft beim Einbinden und nicht bei jeder State-Änderung.“
 
 Referenz: [Offizielle React-Dokumentation zu useEffect](https://react.dev/reference/react/useEffect).
+
+---
+
+# Demo 3: Timer, Callback und Cleanup
+
+## Umsetzung
+
+- `src/components/EffectDemo.tsx` enthält den State `showTimer` und den Button zum Ein-/Ausblenden.
+- `src/components/TimerDemo.tsx` enthält den Effect mit dem Timer und die Cleanup-Funktion.
+
+## Der komplette Ablauf
+
+1. `useState(false)` liefert den Startwert `showTimer = false` und die Änderungsfunktion `setShowTimer`. TimerDemo ist zunächst nicht eingebunden.
+2. Ein Klick ruft `setShowTimer((previous) => !previous)` auf. Der Wert wechselt von false zu true.
+3. React rendert EffectDemo erneut. Durch `{showTimer && <TimerDemo />}` wird TimerDemo eingebunden.
+4. Nach dem Commit führt React deren Effect aus. `setInterval` startet einen Browser-Timer. Seine Kennung wird in `timerId` gespeichert.
+5. Der Browser ruft den Tick-Callback ungefähr jede Sekunde auf.
+6. `return cleanup` gibt React eine Funktion zurück. Es ruft sie noch nicht auf. Die Closure sorgt dafür, dass die Funktion sich die passende `timerId` merkt.
+7. Ein weiterer Klick setzt showTimer auf false. React entfernt TimerDemo.
+8. React ruft die gespeicherte Cleanup-Funktion auf. Erst jetzt wird `clearInterval(timerId)` ausgeführt und der Timer gestoppt.
+9. Erneutes Einblenden bindet TimerDemo neu ein und startet einen neuen Timer.
+
+`clearInterval` ist vom Browser bereitgestellt. Es stoppt den Timer, sobald es aufgerufen wird. React legt hier über den Effect-Lebenszyklus fest, wann unser Cleanup aufgerufen wird. `setShowTimer` greift nicht direkt auf den Timer zu.
+
+## Mit Cleanup vorführen
+
+1. `npm.cmd run dev` starten und die React-App unter `react.html` öffnen.
+2. Browser-Konsole öffnen und nach „Demo 3“ filtern.
+3. „Demo 2: useEffect ausprobieren“ aufklappen. Darin liegt „Demo 3: Timer und Cleanup“.
+4. „Timer einblenden und starten“ klicken: „Timer gestartet“, danach ungefähr jede Sekunde „Tick“ mit Timer-Kennung.
+5. „Timer ausblenden und stoppen“ klicken: „Timer gestoppt“, danach keine weiteren Ticks dieses Timers.
+6. Erneut einblenden: Ein neuer Timer startet. Es sollte nur dieser eine Timer laufen.
+
+Das Zuklappen des details-Bereichs versteckt nur dessen Inhalt. Es entfernt TimerDemo nicht und stoppt daher den Timer nicht. Verwende zum Vorführen den Timer-Button.
+
+## Ohne Cleanup vergleichen
+
+1. In TimerDemo.tsx vorübergehend nur die Zeile `window.clearInterval(timerId);` auskommentieren.
+2. Die Seite neu laden, den Timer einblenden und wieder ausblenden.
+3. Obwohl TimerDemo entfernt wird, erscheinen weiterhin Ticks. Die Meldung „Timer gestoppt“ alleine stoppt nichts und ist in diesem absichtlich fehlerhaften Versuch falsch.
+4. Erneut einblenden: Ein weiterer Timer startet. An verschiedenen Kennungen erkennst du, dass mehrere Timer gleichzeitig laufen.
+5. Die auskommentierte Zeile wiederherstellen und die Seite neu laden. Das Neuladen entfernt die absichtlich zurückgelassenen Browser-Timer.
+
+Die fehlerhafte Variante bleibt nicht im fertigen Code. Die oben beschriebenen Browser-Beobachtungen sind von dir noch live zu prüfen.
+
+## Frage 1: Wer ruft Cleanup auf und wann?
+
+React ruft die aus dem Effect zurückgegebene Funktion auf:
+
+1. Wenn die Komponente entfernt wird. Bei uns passiert das, wenn showTimer false wird.
+2. Bevor der Effect nach geänderten Abhängigkeiten erneut ausgeführt wird. Zuerst wird die alte Einrichtung aufgeräumt, dann die neue gestartet.
+
+Unser Timer-Effect hat `[]`, deshalb gibt es hier keinen Neustart wegen geänderter Abhängigkeiten. Mit beispielsweise `[delay]` müsste React bei geänderter Wartezeit erst den bisherigen Timer stoppen und dann einen neuen starten. Strict Mode kann in der Entwicklung zusätzlich einen Setup–Cleanup–Setup-Prüfzyklus ausführen.
+
+## Frage 2: Welcher konkrete Fehler entsteht ohne Cleanup?
+
+Der Timer gehört zum Browser und wird durch das Entfernen einer React-Komponente nicht automatisch beendet. Ohne clearInterval tickt er weiter, obwohl die Ansicht verschwunden ist. Nach mehrmaligem Aus- und Einblenden laufen mehrere Timer: Du siehst mehrere Tick-Meldungen pro Sekunde mit verschiedenen Kennungen. Das ist der konkret beobachtbare Fehler.
+
+Merksatz: Der Effect richtet etwas ein. React ruft später den zurückgegebenen Cleanup-Callback auf, der diese Einrichtung wieder beendet.
