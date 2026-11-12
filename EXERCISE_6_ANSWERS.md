@@ -186,3 +186,89 @@ Unser Timer-Effect hat `[]`, deshalb gibt es hier keinen Neustart wegen geänder
 Der Timer gehört zum Browser und wird durch das Entfernen einer React-Komponente nicht automatisch beendet. Ohne clearInterval tickt er weiter, obwohl die Ansicht verschwunden ist. Nach mehrmaligem Aus- und Einblenden laufen mehrere Timer: Du siehst mehrere Tick-Meldungen pro Sekunde mit verschiedenen Kennungen. Das ist der konkret beobachtbare Fehler.
 
 Merksatz: Der Effect richtet etwas ein. React ruft später den zurückgegebenen Cleanup-Callback auf, der diese Einrichtung wieder beendet.
+
+---
+
+# Demo 4: Schreibgeschütztes Node-Backend
+
+## Umsetzung
+
+- `server/index.mjs`: Minimaler Server mit Nodes eingebautem Modul `node:http` (kein Express nötig, also keine neue Abhängigkeit). Er liest dieselben Dateien aus `public/data/` und liefert sie unverändert aus.
+- `package.json`: neues Skript `npm run server` (`node --watch` startet bei Codeänderungen neu).
+- `vite.config.mjs`: `server.proxy` leitet `/api` vom Vite-Dev-Server an `http://localhost:3001` weiter.
+- `README.md`: Abschnitt „Local mock backend (development only)“.
+
+## Aufgabe 1: Ein GET-Endpunkt pro Ressource
+
+| Endpunkt | Datei |
+|---|---|
+| `GET /api/case` | `case.json` |
+| `GET /api/evidence` | `evidence.json` |
+| `GET /api/people` | `people.json` |
+| `GET /api/locations` | `locations.json` |
+| `GET /api/timeline` | `timeline.json` |
+
+Die Zuordnung steht im Objekt `RESOURCES`. Der Server liest die Datei bei jeder Anfrage und schickt sie als JSON zurück. Die Form der Daten ist dadurch exakt dieselbe wie bisher. Andere Methoden als GET beantwortet er mit 405, unbekannte Pfade mit 404. Es gibt also keine Schreib-Endpunkte. Bookmarks, Notizen und die Hypothese bleiben im `localStorage`.
+
+## Aufgabe 2: Verzögerung und Fehler auf Abruf
+
+An jedem Endpunkt funktionieren diese Query-Parameter:
+
+- `?delay=2000`: Der Server wartet 2000 ms, bevor er antwortet (`await wait(delay)`).
+- `?fail=1`: Der Server antwortet mit HTTP 500 und `{ "error": "Simulated server error" }`.
+- `?empty=1`: Der Server antwortet mit 200, aber leer (`[]`). Das brauchen wir für den Leer-Zustand in Demo 6.
+- Umgebungsvariable `API_DELAY`: Standardverzögerung für alle Anfragen, z. B. PowerShell: `$env:API_DELAY=2000; npm.cmd run server`.
+
+Parameter lassen sich kombinieren: `?delay=3000&fail=1` liefert erst nach 3 Sekunden einen Fehler.
+
+## Aufgabe 3: Neben `vite dev` starten, nur für die Entwicklung
+
+Zwei Terminals:
+
+```
+npm.cmd run server   -> Mock API (dev only) running on http://localhost:3001/api
+npm.cmd run dev      -> Vite, /api wird an Port 3001 weitergeleitet
+```
+
+Getestet (mit curl):
+
+| Anfrage | Ergebnis |
+|---|---|
+| `/api/case` | 200, Fall-Objekt |
+| `/api/people?empty=1` | 200, `[]` |
+| `/api/timeline?fail=1` | 500 |
+| `/api/locations?delay=1500` | 200 nach ca. 1,5 s |
+| `/api/nope` | 404 |
+| `POST /api/case` | 405 |
+| `http://localhost:<vite-port>/api/people` | 200 (über den Proxy) |
+
+Der Deploy-Workflow (`deploy.yml`) führt nur `npm run build` aus und lädt `dist/` hoch. Der Server ist darin nicht enthalten, und `server.proxy` gilt nur für den Dev-Server. GitHub Pages bleibt eine rein statische Seite. Das steht auch so im README.
+
+### Selbst vorführen
+
+1. Terminal 1: `npm.cmd run server`
+2. Im Browser `http://localhost:3001/api/evidence` öffnen: JSON erscheint.
+3. `http://localhost:3001/api/evidence?fail=1` öffnen: Fehlerobjekt. In den DevTools (Network) sieht man den Status 500.
+4. `http://localhost:3001/api/evidence?delay=3000` öffnen: Die Seite lädt 3 Sekunden.
+5. Im Server-Terminal steht jede Anfrage als Logzeile.
+
+## Frage 1: Warum künstliche Verzögerung und Fehler, statt einfach die JSON-Dateien zu verwenden?
+
+Lokale Dateien antworten praktisch sofort und praktisch immer erfolgreich. Den Ladezustand sieht man dann nur für Millisekunden. Den Fehlerzustand könnte man nur erzeugen, indem man eine Datei löscht oder umbenennt, und auch dann nur als 404.
+
+Ohne die Steuerung könnte ich nicht überzeugend zeigen:
+- dass der Lade-Indikator wirklich erscheint und wieder verschwindet (Demo 6),
+- dass ein Serverfehler (500) sauber als Fehlermeldung angezeigt wird und nicht ein ewiger Spinner (Demo 6),
+- eine Request-Race: Eine ältere, langsame Antwort kommt nach einer neueren an. Das passiert nur, wenn Antworten unterschiedlich lange brauchen (Demo 7).
+
+Kurz zum Vortragen: „Echte Netzwerke sind langsam und fallen manchmal aus. Mit Verzögerung und Fehler auf Knopfdruck kann ich genau diese Fälle reproduzierbar vorführen, statt auf Zufall zu hoffen.“
+
+## Frage 2: Was ist CORS und musste ich mich darum kümmern?
+
+CORS (Cross-Origin Resource Sharing) ist eine Sicherheitsregel des Browsers. Ein Origin besteht aus Protokoll, Host und Port. Lädt JavaScript von `http://localhost:5173` Daten von `http://localhost:3001`, ist das ein anderer Origin (anderer Port). Der Browser gibt die Antwort dem Skript nur, wenn der Server das per Header erlaubt, z. B. `Access-Control-Allow-Origin: http://localhost:5173`.
+
+Ich musste CORS nicht konfigurieren, weil ich den Vite-Proxy verwende. Das Frontend ruft `/api/evidence` relativ auf, also beim eigenen Origin (Vite). Der Vite-Dev-Server leitet die Anfrage serverseitig an Port 3001 weiter. CORS gilt nur im Browser, Server-zu-Server-Anfragen betrifft es nicht. Für den Browser gibt es daher nur einen einzigen Origin.
+
+Die Alternative wäre gewesen, im Backend den Header `Access-Control-Allow-Origin` zu setzen und im Frontend die volle URL `http://localhost:3001/api/...` zu verwenden. Der Proxy hat zwei Vorteile: kein CORS-Code und keine fest eingebaute Server-Adresse im Frontend.
+
+Kurz zum Vortragen: „CORS blockiert im Browser Antworten von anderen Origins. Mit dem Vite-Proxy spricht der Browser nur mit Vite, deshalb trat CORS bei mir nicht auf.“

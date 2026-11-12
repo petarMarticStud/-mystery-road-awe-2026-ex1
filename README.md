@@ -35,6 +35,34 @@ npx serve .
 
 Then open `http://localhost:8080` (or whatever port your server prints) in your browser.
 
+## Local mock backend (development only)
+
+Since Exercise 6 the React app reads its case data from a small read-only Node.js server in
+`server/index.mjs` instead of the static `public/data/*.json` files. **It is for local development
+only and is not part of the GitHub Pages deploy pipeline** (Exercise 2). The deployed site stays a
+static frontend.
+
+Start both servers in two terminals:
+
+```bash
+npm run server   # mock API on http://localhost:3001/api  (restarts on file changes)
+npm run dev      # Vite dev server; requests to /api are proxied to port 3001
+```
+
+Endpoints (GET only, same data/shape as the JSON files):
+`/api/case`, `/api/evidence`, `/api/people`, `/api/locations`, `/api/timeline`
+
+Query parameters to simulate real-world conditions (work on every endpoint):
+
+| Parameter   | Effect                                                    |
+|-------------|-----------------------------------------------------------|
+| `delay=MS`  | respond after `MS` milliseconds                           |
+| `fail=1`    | respond with HTTP 500                                     |
+| `empty=1`   | respond successfully, but with an empty array / object    |
+
+A default delay for all requests can be set with the `API_DELAY` environment variable
+(e.g. `API_DELAY=2000 npm run server`; in PowerShell: `$env:API_DELAY=2000; npm run server`).
+
 ## Features
 
 - **Dashboard** — case summary and key statistics calculated from the loaded case data.

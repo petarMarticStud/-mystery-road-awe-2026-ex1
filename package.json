@@ -5,6 +5,7 @@
   "main": "app.js",
   "scripts": {
     "dev": "tsc --noEmit && vite",
+    "server": "node --watch server/index.mjs",
     "build": "tsc --noEmit && vite build",
     "lint": "eslint app.js modules/*.ts",
     "lint:fix": "eslint app.js modules/*.ts --fix",
