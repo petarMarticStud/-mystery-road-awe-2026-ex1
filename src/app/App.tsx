@@ -4,7 +4,7 @@ import { loadDashboardData } from "../dashboardData";
 import type { DashboardData } from "../dashboardData";
 import { Panel } from "../components/Panel";
 import { PersonCard } from "../features/people-locations/PersonCard";
-import { LocationCard } from "../features/people-locations/LocationCard";
+import { LocationsPage } from "../features/people-locations/LocationsPage";
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router";
 import { EffectDemo } from "../components/EffectDemo";
 import { PersonDetailPage } from "../features/people-locations/PersonDetailPage";
@@ -211,21 +211,8 @@ export default function App() {
                   </NavLink>
                 </nav>
 
-                {error !== null ? (
-                  <p role="alert">Error: {error}</p>
-                ) : data === null ? (
-                  <p>Loading data…</p>
-                ) : (
-                  <Panel title="Locations">
-                    {data.locations.map((location) => (
-                      <LocationCard
-                        key={location.id}
-                        name={location.name}
-                        description={location.description}
-                      />
-                    ))}
-                  </Panel>
-                )}
+                {/* Demo 5: laedt seine Daten selbst per fetch("/api/locations") */}
+                <LocationsPage />
               </>
             }
           />

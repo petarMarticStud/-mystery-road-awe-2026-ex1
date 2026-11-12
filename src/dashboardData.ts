@@ -20,11 +20,13 @@ export interface DashboardData {
   bookmarks: string[];
 }
 
-async function loadJson<T>(filename: string): Promise<T> {
-  const response = await fetch(`${import.meta.env.BASE_URL}data/${filename}`);
+// Exercise 6 – Demo 5, Task 2: Daten kommen jetzt vom lokalen Backend
+// (GET /api/<resource>) statt aus den statischen public/data/*.json-Dateien.
+async function loadJson<T>(resource: string): Promise<T> {
+  const response = await fetch(`/api/${resource}`);
 
   if (!response.ok) {
-    throw new Error(`${filename}: HTTP ${response.status}`);
+    throw new Error(`${resource}: HTTP ${response.status}`);
   }
 
   return (await response.json()) as T;
@@ -54,11 +56,11 @@ function loadBookmarks(): string[] {
 
 export async function loadDashboardData(): Promise<DashboardData> {
   const [caseInfo, evidence, people, locations, timeline] = await Promise.all([
-    loadJson<CaseInfo>("case.json"),
-    loadJson<Evidence[]>("evidence.json"),
-    loadJson<Person[]>("people.json"),
-    loadJson<Location[]>("locations.json"),
-    loadJson<TimelineEvent[]>("timeline.json"),
+    loadJson<CaseInfo>("case"),
+    loadJson<Evidence[]>("evidence"),
+    loadJson<Person[]>("people"),
+    loadJson<Location[]>("locations"),
+    loadJson<TimelineEvent[]>("timeline"),
   ]);
 
   return {

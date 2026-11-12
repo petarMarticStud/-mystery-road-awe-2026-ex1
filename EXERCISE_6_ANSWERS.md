@@ -272,3 +272,100 @@ Ich musste CORS nicht konfigurieren, weil ich den Vite-Proxy verwende. Das Front
 Die Alternative wäre gewesen, im Backend den Header `Access-Control-Allow-Origin` zu setzen und im Frontend die volle URL `http://localhost:3001/api/...` zu verwenden. Der Proxy hat zwei Vorteile: kein CORS-Code und keine fest eingebaute Server-Adresse im Frontend.
 
 Kurz zum Vortragen: „CORS blockiert im Browser Antworten von anderen Origins. Mit dem Vite-Proxy spricht der Browser nur mit Vite, deshalb trat CORS bei mir nicht auf.“
+
+---
+
+# Demo 5: Backend aus React verwenden
+
+## Aufgabe 1: Eine Ansicht lädt per fetch() in einem useEffect
+
+Gewählt: die Locations-Ansicht, weil sie als einzige nur eine Ressource (`locations`) braucht.
+
+- Neu: `src/features/people-locations/LocationsPage.tsx`
+- `src/app/App.tsx`: Die Route `/team/locations` rendert jetzt `<LocationsPage />`, statt `data.locations` aus App zu verwenden.
+
+```tsx
+const [locations, setLocations] = useState<Location[] | null>(null);
+const [error, setError] = useState<string | null>(null);
+
+useEffect(() => {
+  async function loadLocations() {
+    try {
+      const response = await fetch("/api/locations");
+      if (!response.ok) {
+        throw new Error(`locations: HTTP ${response.status}`);
+      }
+      const data = (await response.json()) as Location[];
+      setLocations(data);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not load locations.");
+    }
+  }
+  loadLocations();
+}, []);
+```
+
+- `fetch("/api/locations")` geht an den Vite-Dev-Server. Der Proxy aus Demo 4 leitet weiter an `http://localhost:3001/api/locations`.
+- `response.ok` muss ich selbst prüfen: `fetch` wirft bei 404 oder 500 keinen Fehler, sondern nur bei Netzwerkproblemen (Server nicht erreichbar).
+- `[]`: Der Effect läuft einmal nach dem Einbinden der Komponente.
+- Die Effect-Funktion selbst ist nicht `async`, weil ein Effect nur eine Cleanup-Funktion (oder nichts) zurückgeben darf. Eine async-Funktion würde ein Promise zurückgeben. Deshalb steht eine innere async-Funktion darin, die sofort aufgerufen wird.
+
+Bewusst noch nicht enthalten: ein Leer-Zustand (Demo 6) und Schutz vor veralteten Antworten (Demo 7).
+
+## Aufgabe 2: Die restlichen Datenquellen umstellen
+
+`src/dashboardData.ts`, Funktion `loadJson`:
+
+```ts
+// vorher
+const response = await fetch(`${import.meta.env.BASE_URL}data/${filename}`);   // z. B. data/case.json
+// nachher
+const response = await fetch(`/api/${resource}`);                                // z. B. /api/case
+```
+
+Die Aufrufe heißen jetzt `loadJson("case")`, `loadJson("evidence")` usw. `loadDashboardData()` wird weiterhin im bestehenden `useEffect` in `App.tsx` aufgerufen. Damit lesen Dashboard, People, Personen-Detail, Timeline, Evidence und Workspace vom Backend. Bookmarks kommen weiterhin aus `localStorage`.
+
+Warum zentral in App und nicht jede Ansicht einzeln? Dashboard, Evidence und Workspace brauchen mehrere Ressourcen gleichzeitig. Außerdem ändert App den Evidence-Status und die Bookmarks im State. Bliebe jede Ansicht für sich, gingen diese Änderungen beim Routenwechsel verloren.
+
+Kontrolle: In `src/` gibt es keinen Zugriff mehr auf `data/*.json`. Nur noch `/api/...`-Aufrufe (`grep "fetch(" src`). Die alte Vanilla-App (`index.html`/`app.js`) bleibt unverändert, weil es um die React-App geht.
+
+Folge: Auf GitHub Pages gibt es kein `/api`. Die deployte React-App zeigt dort die Fehlermeldung. Das ist laut Aufgabe in Ordnung („Wiring up a real deployed backend is out of scope“).
+
+### Selbst vorführen
+
+1. Terminal 1: `npm.cmd run server`, Terminal 2: `npm.cmd run dev`
+2. React-App öffnen, F12 → Network, Filter „api“.
+3. Neu laden: fünf Anfragen `case`, `evidence`, `people`, `locations`, `timeline`, alle mit Status 200. Im Server-Terminal stehen dieselben fünf Zeilen.
+4. Auf People & Locations → Locations wechseln: eine zusätzliche Anfrage `locations` von `LocationsPage`.
+5. Server-Terminal mit Strg+C stoppen und die Seite neu laden: Es erscheint „Error: …“ statt der Daten. Das beweist, dass die Daten wirklich vom Backend kommen.
+
+## Frage 1: Was passiert der Reihe nach vom Einbinden bis zu den Daten?
+
+Am Beispiel `LocationsPage`:
+
+1. **Erster Render:** React ruft `LocationsPage()` auf. `useState(null)` liefert `locations = null`. Die Komponente gibt „Loading locations…“ zurück.
+2. **Commit:** React schreibt das ins DOM. Der Benutzer sieht den Ladetext.
+3. **Effect läuft:** Erst nach dem Commit führt React den Effect aus (`[]` heißt: einmal nach dem Einbinden). `fetch("/api/locations")` startet die Anfrage. `await` pausiert nur die async-Funktion, React und der Browser laufen weiter.
+4. **Netzwerk:** Browser → Vite-Proxy → Backend → liest `locations.json` → Antwort 200.
+5. **Antwort kommt an:** `response.ok` ist true, `await response.json()` macht daraus ein Array.
+6. **`setLocations(data)`:** Das plant eine State-Änderung ein. Diese State-Änderung ist der Grund für das erneute Rendern.
+7. **Zweiter Render:** `locations` ist jetzt das Array. Die Komponente gibt die Liste der `LocationCard`s zurück.
+8. **Commit:** React aktualisiert das DOM, die Orte sind sichtbar. Der Effect läuft wegen `[]` nicht noch einmal, also gibt es keine Endlosschleife.
+
+Kurz zum Vortragen: „Erst rendert die Komponente den Ladezustand, danach startet der Effect den fetch. Wenn die Antwort da ist, setze ich State. Das löst einen neuen Render mit den Daten aus.“
+
+## Frage 2: Was ist anders als vorher, welcher State ist neu?
+
+Vorher kam `locations` als fertige Daten (Prop von App), die Komponente musste nichts über das Laden wissen. Bei einer lokalen Datei war die Wartezeit unsichtbar kurz und ein Fehler praktisch unmöglich.
+
+Jetzt muss die Komponente selbst drei Situationen unterscheiden:
+
+| Situation | State | Anzeige |
+|---|---|---|
+| Lädt noch | `locations === null`, `error === null` | „Loading locations…“ |
+| Fehler | `error !== null` | „Error: locations: HTTP 500“ |
+| Erfolg | `locations` ist ein Array | Liste |
+
+Neu sind also der Datenzustand mit „noch nichts da“ (`null`) und der Fehlerzustand (`error`). Außerdem ist die Komponente nicht mehr rein: Sie hat einen Effect, der mit etwas außerhalb von React (dem Server) spricht.
+
+Kurz zum Vortragen: „Vorher waren die Daten einfach da. Jetzt muss die Komponente zusätzlich wissen: lädt es noch, ist ein Fehler passiert, oder sind die Daten da.“
