@@ -136,3 +136,79 @@
     transition: none;
   }
 }
+
+/* Exercise 6 – Demo 6: Lade-, Fehler- und Leer-Zustand */
+.load-state {
+  grid-column: 1 / -1; /* ueber die ganze Breite des Karten-Grids */
+  padding: 40px 24px;
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.load-state p {
+  margin: 0 0 8px;
+}
+
+.load-state__title {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.load-state__detail {
+  color: var(--color-text-muted);
+}
+
+/* Laden: neutral, Spinner, keine Umrandung */
+.load-state--loading {
+  color: var(--color-text-muted);
+}
+
+.load-state--loading .spinner {
+  border: 4px solid var(--color-border);
+  border-top-color: var(--color-accent);
+}
+
+/* Fehler: rot, durchgezogene Umrandung, Aktion "Try again" */
+.load-state--error {
+  border: 2px solid var(--color-critical);
+  background: #fdf0ee;
+  color: var(--color-critical);
+}
+
+/* Leer: ruhig, gestrichelte Umrandung, kein Alarm */
+.load-state--empty {
+  border: 2px dashed var(--color-border);
+  color: var(--color-text);
+}
+
+.load-state__button {
+  margin-top: 8px;
+  padding: 8px 18px;
+  border: 1px solid var(--color-critical);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--color-critical);
+  font: inherit;
+  cursor: pointer;
+}
+
+.load-state__button:hover {
+  background: var(--color-critical);
+  color: #fff;
+}
+
+.simulation-control {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  border: 1px dashed var(--color-warn);
+  border-radius: var(--radius);
+  color: var(--color-warn);
+  font-size: 0.9rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .load-state--loading .spinner {
+    animation-duration: 3s;
+  }
+}

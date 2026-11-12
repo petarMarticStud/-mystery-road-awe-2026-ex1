@@ -369,3 +369,118 @@ Jetzt muss die Komponente selbst drei Situationen unterscheiden:
 Neu sind also der Datenzustand mit „noch nichts da“ (`null`) und der Fehlerzustand (`error`). Außerdem ist die Komponente nicht mehr rein: Sie hat einen Effect, der mit etwas außerhalb von React (dem Server) spricht.
 
 Kurz zum Vortragen: „Vorher waren die Daten einfach da. Jetzt muss die Komponente zusätzlich wissen: lädt es noch, ist ein Fehler passiert, oder sind die Daten da.“
+
+---
+
+# Demo 6: Lade-, Fehler- und Leer-Zustand
+
+## Aufgabe 1: Alle drei Zustände für eine Ansicht
+
+Ansicht: Locations.
+
+- `src/components/LoadStates.tsx` (neu): `LoadingState`, `ErrorState`, `EmptyState`
+- `src/features/people-locations/LocationsPage.tsx`: ein State-Objekt `LoadState`, eine Simulationsauswahl (nur in der Entwicklung) und „Try again“
+- `src/react.css`: Klassen `.load-state--loading`, `--error`, `--empty`
+
+### Ein State statt mehrerer Booleans
+
+```tsx
+type LoadState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "success"; data: Location[] };
+```
+
+`status` sagt, welcher Fall gerade gilt. Nur im Fall `"success"` gibt es `data`, nur im Fall `"error"` gibt es `message`. TypeScript erzwingt das: `state.data` ist nur nach der Prüfung `state.status === "success"` erlaubt.
+
+„Leer“ ist kein eigener Status, sondern wird beim Rendern berechnet: `state.status === "success" && state.data.length === 0`.
+
+### Effect
+
+```tsx
+useEffect(() => {
+  setState({ status: "loading" });       // jeder Ladevorgang beginnt im Ladezustand
+  async function loadLocations() {
+    try {
+      const response = await fetch(`/api/locations${SIMULATIONS[simulation].query}`);
+      if (!response.ok) throw new Error(`The server answered with HTTP ${response.status}.`);
+      setState({ status: "success", data: await response.json() });
+    } catch (error) {
+      setState({ status: "error", message: ... });
+    }
+  }
+  loadLocations();
+}, [simulation, attempt]);
+```
+
+- `simulation`: Auswahl im Dropdown (Normal, Slow, Server error, Slow error, Empty). Hängt die Query-Parameter aus Demo 4 an. Ändert sich die Auswahl, lädt der Effect neu.
+- `attempt`: wird vom Button „Try again“ erhöht und lädt dadurch erneut.
+
+## Aufgabe 2: Visuell und strukturell unterscheidbar
+
+| | Laden | Fehler | Leer |
+|---|---|---|---|
+| Markup | Spinner + Text | Titel, Ursache, Button | Titel, Erklärung |
+| Rolle | `role="status"` | `role="alert"` | keine |
+| Aussehen | grau, drehender Spinner, kein Rahmen | rot, durchgezogener roter Rahmen, rosa Hintergrund | gestrichelter grauer Rahmen |
+| Aktion | keine | „Try again“ | keine (kein Fehler, nichts zu tun) |
+| Text | „Loading locations…“ | „Locations could not be loaded. The server answered with HTTP 500.“ | „No locations recorded for this case.“ |
+
+Die Panel-Überschrift „Locations“ bleibt in allen Zuständen stehen. Man weiß also immer, welcher Bereich lädt, fehlt oder leer ist.
+
+Fehler- und Leer-Zustand wurden per Screenshot (Headless-Edge) geprüft. Den Ladezustand bitte live mit „Slow (3 s)“ ansehen.
+
+### Selbst vorführen
+
+1. `npm.cmd run server` und `npm.cmd run dev`, React-App öffnen, People & Locations → Locations.
+2. Auswahl „Slow (3 s)“: 3 Sekunden Spinner, dann die Orte.
+3. „Server error (500)“: roter Fehlerkasten. Im Network-Tab: `locations?fail=1` mit Status 500.
+4. „Try again“: Lädt erneut (neue Zeile im Server-Terminal), Ergebnis wieder 500.
+5. „Empty response“: gestrichelter Kasten „No locations recorded for this case.“
+6. „Slow error“: erst 2 s Spinner, dann der Fehler. Man sieht den Übergang von Laden zu Fehler.
+7. Zurück auf „Normal“: Liste.
+
+## Frage 1: Welche State-Variablen unterscheiden die Zustände?
+
+Eine einzige: `state` mit dem Feld `status`.
+
+| Situation | `state` |
+|---|---|
+| lädt | `{ status: "loading" }` |
+| Fehler | `{ status: "error", message: "The server answered with HTTP 500." }` |
+| erfolgreich, leer | `{ status: "success", data: [] }` |
+| erfolgreich mit Daten | `{ status: "success", data: [6 Orte] }` |
+
+Warum nicht drei Variablen `isLoading`, `error`, `data`? Damit wären unmögliche Kombinationen möglich, zum Beispiel `isLoading = true` und gleichzeitig `error = "..."`. Vergisst man an einer Stelle, eine Variable zurückzusetzen, zeigt die Oberfläche zwei Zustände gleichzeitig oder einen falschen. Mit einem Status-Feld gilt immer genau ein Fall.
+
+Wichtig ist der Unterschied zwischen Leer und Fehler: Leer heißt `status: "success"` mit `data: []`. Der Server hat geantwortet, es gibt nur nichts. Fehler heißt: Wir wissen nicht, ob es Daten gibt.
+
+Kurz zum Vortragen: „Ich habe ein State-Objekt mit status loading, error oder success. Leer ist success mit leerem Array. So kann nie gleichzeitig Laden und Fehler angezeigt werden.“
+
+## Frage 2: Der hängende Spinner der Vanilla-App
+
+Der Fehler steht in `modules/data.ts`, `loadAllData`:
+
+```ts
+const peopleResponse = await fetch("data/people.json");        // kein try/catch
+state.allPeople = await peopleResponse.json();
+const locationsResponse = await fetch("data/locations.json");
+state.allLocations = await locationsResponse.json();
+hideLoadingStep();                                              // wird bei einem Fehler nie erreicht
+```
+
+Wirft `fetch` oder `json()` einen Fehler, springt die Ausführung aus der Funktion. `hideLoadingStep()` wird nie aufgerufen, das Overlay bekommt nie die Klasse `hidden` und bleibt für immer stehen. Der Spinner ist dort ein eigener DOM-Zustand, der in jedem Codepfad einzeln wieder ausgeschaltet werden muss.
+
+In React ist der Spinner kein eigener Zustand, den man ausschalten muss. Er ist eine Folge von `state`:
+
+```tsx
+{state.status === "loading" && <LoadingState ... />}
+```
+
+- Es gibt kein „hideLoading“. Sobald `state` etwas anderes als `"loading"` ist, rendert React den Spinner nicht mehr und entfernt ihn aus dem DOM.
+- Im Erfolgspfad wird `"success"` gesetzt, im `catch` wird `"error"` gesetzt. Beide Wege verlassen den Ladezustand automatisch. Der Fehlerpfad ersetzt den Spinner sogar durch eine sichtbare Meldung.
+- `response.ok` wird geprüft. Ein 500 landet dadurch auch im `catch`, statt die Fehlerantwort als Daten zu verwenden. Die Vanilla-Version prüft das gar nicht.
+
+Ganz unmöglich ist der Fehler nicht: Würde man den `catch`-Block vergessen, bliebe der State bei `"loading"`. Er ist aber schwerer zu machen, weil man nur noch an einer Stelle festlegt, was angezeigt wird. Außerdem muss man nicht in jedem Pfad an ein Aufräumen denken.
+
+Kurz zum Vortragen: „In der Vanilla-App musste der Spinner auf jedem Weg manuell versteckt werden, und im Fehlerpfad wurde das vergessen. In React wird der Spinner aus dem State abgeleitet: Ich setze im Erfolg success und im catch error, und der Spinner verschwindet automatisch.“
