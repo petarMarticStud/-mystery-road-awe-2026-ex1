@@ -3,9 +3,9 @@ import Dashboard from "../features/dashboard/Dashboard";
 import { loadDashboardData } from "../dashboardData";
 import type { DashboardData } from "../dashboardData";
 import { Panel } from "../components/Panel";
-import { PersonCard } from "../features/people-locations/PersonCard";
+import { PeoplePage } from "../features/people-locations/PeoplePage";
 import { LocationsPage } from "../features/people-locations/LocationsPage";
-import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router";
+import { NavLink, Navigate, Route, Routes, useLocation } from "react-router";
 import { EffectDemo } from "../components/EffectDemo";
 import { PersonDetailPage } from "../features/people-locations/PersonDetailPage";
 import { TimelinePage } from "../features/timeline/TimelinePage";
@@ -158,28 +158,8 @@ export default function App() {
                   </NavLink>
                 </nav>
 
-                {error !== null ? (
-                  <p role="alert">Error: {error}</p>
-                ) : data === null ? (
-                  <p>Loading data…</p>
-                ) : (
-                  <Panel title="People">
-                    {data.people.map((person) => (
-                      <PersonCard
-                        key={person.id}
-                        name={person.name}
-                        role={person.role}
-                      >
-                        <Link
-                          to={`/team/people/${person.id}`}
-                          className="detail-button"
-                        >
-                          View profile <span aria-hidden="true">→</span>
-                        </Link>
-                      </PersonCard>
-                    ))}
-                  </Panel>
-                )}
+                {/* Demo 8: laedt seine Daten selbst ueber den Hook useFetch */}
+                <PeoplePage />
               </>
             }
           />
@@ -211,7 +191,7 @@ export default function App() {
                   </NavLink>
                 </nav>
 
-                {/* Demo 5: laedt seine Daten selbst per fetch("/api/locations") */}
+                {/* Demo 8: laedt seine Daten selbst ueber den Hook useFetch */}
                 <LocationsPage />
               </>
             }

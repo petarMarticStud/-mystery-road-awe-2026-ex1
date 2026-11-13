@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { Location } from "../../../modules/domain";
 import { Panel } from "../../components/Panel";
 import {
@@ -6,14 +6,8 @@ import {
   ErrorState,
   LoadingState,
 } from "../../components/LoadStates";
+import { useFetch } from "../../hooks/useFetch";
 import { LocationCard } from "./LocationCard";
-
-// Exercise 6 – Demo 6: EIN State-Objekt beschreibt den Ladezustand.
-// Es kann immer nur genau einer der drei Faelle gelten.
-type LoadState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "success"; data: Location[] };
 
 // Nur fuer die Entwicklung: steuert die Simulation im Backend (siehe Demo 4).
 const SIMULATIONS = {
@@ -26,66 +20,16 @@ const SIMULATIONS = {
 type Simulation = keyof typeof SIMULATIONS;
 
 export function LocationsPage() {
-  const [state, setState] = useState<LoadState>({ status: "loading" });
   const [simulation, setSimulation] = useState<Simulation>("normal");
-  // Wird bei "Try again" erhoeht und startet dadurch den Effect neu.
-  const [attempt, setAttempt] = useState(0);
-
   // Exercise 6 – Demo 7: nur fuer die Vorfuehrung. Ausgeschaltet zeigt es die Race Condition.
   const [cancelStale, setCancelStale] = useState(true);
-  // Zaehlt die Anfragen, damit man in der Konsole sieht, welche Antwort zu welcher Anfrage gehoert.
-  const requestCounter = useRef(0);
 
-  useEffect(() => {
-    // Exercise 6 – Demo 7: Jeder Effect-Durchlauf bekommt seinen EIGENEN AbortController.
-    const controller = new AbortController();
-    const requestId = ++requestCounter.current;
-    const label = SIMULATIONS[simulation].label;
-
-    // Jeder neue Ladevorgang beginnt wieder im Ladezustand.
-    setState({ status: "loading" });
-
-    async function loadLocations() {
-      console.log(`[#${requestId}] Anfrage gestartet: ${label}`);
-      try {
-        const response = await fetch(
-          `/api/locations${SIMULATIONS[simulation].query}`,
-          // Mit signal kann der Browser die Anfrage abbrechen.
-          { signal: cancelStale ? controller.signal : undefined },
-        );
-
-        if (!response.ok) {
-          throw new Error(`The server answered with HTTP ${response.status}.`);
-        }
-
-        const data = (await response.json()) as Location[];
-        console.log(`[#${requestId}] Antwort angezeigt: ${label} (${data.length} Orte)`);
-        setState({ status: "success", data });
-      } catch (error) {
-        // Abgebrochen heisst: Diese Anfrage ist veraltet. Kein Fehler, nichts anzeigen.
-        if (controller.signal.aborted) {
-          console.log(`[#${requestId}] abgebrochen, Antwort ignoriert: ${label}`);
-          return;
-        }
-        setState({
-          status: "error",
-          message:
-            error instanceof Error ? error.message : "Unknown network error.",
-        });
-      }
-    }
-
-    loadLocations();
-
-    // Cleanup: React ruft das auf, BEVOR der Effect mit neuen Abhaengigkeiten
-    // erneut laeuft (oder beim Unmount). Dann ist diese Anfrage veraltet.
-    return () => {
-      if (cancelStale) {
-        console.log(`[#${requestId}] Cleanup: breche Anfrage ab (${label})`);
-        controller.abort();
-      }
-    };
-  }, [simulation, attempt, cancelStale]);
+  // Exercise 6 – Demo 8: Laden, Lade-/Fehler-/Leer-State und Abbrechen kommen aus dem Hook.
+  // Aendert sich die Simulation, aendert sich die URL -> der Hook laedt neu.
+  const { state, reload } = useFetch<Location[]>(
+    `/api/locations${SIMULATIONS[simulation].query}`,
+    { cancelStale },
+  );
 
   return (
     <>
@@ -127,7 +71,7 @@ export function LocationsPage() {
           <ErrorState
             title="Locations could not be loaded."
             message={state.message}
-            onRetry={() => setAttempt((previous) => previous + 1)}
+            onRetry={reload}
           />
         )}
 

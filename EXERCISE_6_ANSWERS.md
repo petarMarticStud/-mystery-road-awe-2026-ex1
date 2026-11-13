@@ -565,3 +565,102 @@ Dazu kommt der `catch`: Nach dem Abbruch wirft `fetch` einen `AbortError`. Den f
 Beim Verlassen der Seite (Unmount) läuft derselbe Cleanup, die Anfrage wird abgebrochen, und es wird kein State einer Komponente gesetzt, die es nicht mehr gibt.
 
 Kurz zum Vortragen: „React ruft den Cleanup auf, wenn die Anfrage veraltet ist. In diesem Cleanup rufe ich controller.abort() auf. Der Cleanup bestimmt also das Wann, der AbortController das Wie. Im catch ignoriere ich den AbortError, damit kein falscher Fehler erscheint.“
+
+---
+
+# Demo 8: Wiederverwendbarer Custom Hook
+
+## Aufgabe: Ladelogik in `useFetch<T>(url)` auslagern
+
+Neue Datei `src/hooks/useFetch.ts`. Darin steht alles, was in Demo 5–7 direkt in `LocationsPage` stand:
+
+| aus Demo | im Hook |
+|---|---|
+| 5 | `fetch(url)` in einem `useEffect`, `response.ok` prüfen |
+| 6 | ein State `FetchState<T>`: `loading` / `error` / `success` (leer = `success` mit `[]`) |
+| 6 | `reload()` für „Try again“ (intern ein `attempt`-Zähler im Abhängigkeitsarray) |
+| 7 | eigener `AbortController` pro Durchlauf, `abort()` im Cleanup, `AbortError` ignorieren |
+
+```ts
+export function useFetch<T>(url: string, { cancelStale = true } = {}) {
+  const [state, setState] = useState<FetchState<T>>({ status: "loading" });
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => { ... fetch(url, { signal }) ... return () => controller.abort(); },
+            [url, attempt, cancelStale]);
+  function reload() { setAttempt((p) => p + 1); }
+  return { state, reload };
+}
+```
+
+Der Hook gibt `{ state, reload }` zurück. `T` ist generisch: `useFetch<Location[]>` liefert `state.data` als `Location[]`, `useFetch<Person[]>` als `Person[]`.
+
+`url` steht im Abhängigkeitsarray. Ändert sich die URL (z. B. andere Simulation), lädt der Hook neu und bricht die alte Anfrage ab.
+
+### Die zwei Stellen
+
+1. `src/features/people-locations/LocationsPage.tsx`:
+   ```tsx
+   const { state, reload } = useFetch<Location[]>(
+     `/api/locations${SIMULATIONS[simulation].query}`,
+     { cancelStale },
+   );
+   ```
+2. `src/features/people-locations/PeoplePage.tsx` (neu, ersetzt den People-Tab in `App.tsx`):
+   ```tsx
+   const { state, reload } = useFetch<Person[]>("/api/people");
+   ```
+
+Getestet mit Headless-Edge: `/team/people` zeigt die Personenkarten, `/team/locations` die 6 Orte. Im Server-Log stehen `GET /api/people` und `GET /api/locations`.
+
+### Selbst vorführen
+
+1. `npm.cmd run server` und `npm.cmd run dev`, Konsole offen.
+2. People & Locations → People: kurz „Loading people…“, dann die Karten. Konsole: `[#1] Anfrage gestartet: /api/people`.
+3. Tab Locations: Simulation und Checkbox aus Demo 6/7 funktionieren unverändert, jetzt aber über den Hook.
+4. Race aus Demo 7 wiederholen (Slow, dann Empty): gleiches Verhalten wie vorher. Der Hook hat das Verhalten nicht verändert, nur den Ort des Codes.
+
+## Frage 1: Was macht einen echten Custom Hook aus? Welche Regeln gelten?
+
+Ein Custom Hook ist eine Funktion, die **selbst andere Hooks aufruft** (`useState`, `useEffect`, `useRef`, ...). Ihr Name beginnt **mit `use`**.
+
+Der Unterschied zu einer normalen Hilfsfunktion:
+
+- `loadJson()` in `dashboardData.ts` ist eine **Hilfsfunktion**. Sie holt Daten und gibt ein Promise zurück. Sie hat keinen State, löst kein Rendern aus und kann überall aufgerufen werden, auch in einem Klick-Handler.
+- `useFetch()` ist ein **Hook**. Er besitzt State, der zur aufrufenden Komponente gehört. Ändert er sich, rendert diese Komponente neu. Er hat einen Effect mit Cleanup, der an den Lebenszyklus der Komponente gebunden ist.
+
+Jeder Aufruf bekommt **eigenen** State. `PeoplePage` und `LocationsPage` teilen nichts. Jede hat ihr eigenes `state`, ihren eigenen `attempt` und eigene Controller. Geteilt wird die **Logik**, nicht die Daten.
+
+Regeln für Hooks (Rules of Hooks):
+
+1. **Nur auf oberster Ebene aufrufen**: nicht in `if`, Schleifen, verschachtelten Funktionen oder nach einem frühen `return`. React erkennt Hooks nur an ihrer **Reihenfolge** bei jedem Rendern. Wird ein Hook mal aufgerufen und mal nicht, verrutscht die Zuordnung und `useState` liefert den State eines anderen Hooks.
+   ```tsx
+   if (showPeople) { const { state } = useFetch("/api/people"); }   // ❌ falsch
+   ```
+2. **Nur in React-Funktionskomponenten oder in anderen Custom Hooks** aufrufen, nicht in normalen Funktionen, Event-Handlern oder Klassen.
+3. Der Name mit `use` ist die Konvention, an der React (und das ESLint-Plugin `eslint-plugin-react-hooks`) erkennt, dass die Regeln geprüft werden müssen.
+
+Kurz zum Vortragen: „Ein Custom Hook ist eine Funktion mit use-Präfix, die selbst Hooks aufruft. Dadurch hat sie State und Effects, die zur aufrufenden Komponente gehören. Eine Hilfsfunktion holt nur Daten. Hooks dürfen nur oben in Komponenten oder anderen Hooks aufgerufen werden, nie bedingt, weil React sie über die Aufrufreihenfolge zuordnet.“
+
+## Frage 2: Was wurde eingespart, was bleibt pro Stelle?
+
+**Eingespart** (stünde sonst in beiden Komponenten doppelt, ca. 50 Zeilen):
+
+- `useState` für den Ladezustand plus der `FetchState`-Typ
+- `useEffect` mit `fetch`, `response.ok`-Prüfung, `json()`
+- Fehlerbehandlung im `catch`
+- `AbortController`, Cleanup, Erkennen des Abbruchs (Demo 7). Genau diese Stelle vergisst man beim Kopieren gern, dann hätte nur eine Seite den Race-Fix.
+- `attempt`-Zähler und `reload()` für „Try again“
+
+**Bleibt pro Stelle** (kann nicht geteilt werden):
+
+| | LocationsPage | PeoplePage |
+|---|---|---|
+| URL | `/api/locations` + Simulations-Query | `/api/people` |
+| Typ `T` | `Location[]` | `Person[]` |
+| Simulation/Checkbox | ja, nur hier (Dev-Vorführung) | nein |
+| Texte | „Loading locations…“, „No locations recorded…“ | „Loading people…“, „No people recorded…“ |
+| Darstellung der Daten | `LocationCard` | `PersonCard` mit Link zum Profil |
+
+Der Hook entscheidet nur, **in welchem Zustand** die Daten sind. **Wie** jeder Zustand aussieht, ist Sache der Komponente. Die Bausteine `LoadingState`/`ErrorState`/`EmptyState` werden zwar geteilt, aber Text und Erfolgsdarstellung sind pro Seite verschieden.
+
+Kurz zum Vortragen: „Beide Seiten rufen nur noch useFetch mit ihrer URL auf. Eingespart sind State, Effect, Fehlerbehandlung, Abbrechen und Retry. Pro Seite bleiben URL, Datentyp, Texte und wie die Daten gerendert werden, bei Locations zusätzlich die Simulationsauswahl.“
