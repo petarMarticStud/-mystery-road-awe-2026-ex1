@@ -5,11 +5,18 @@ import type {
   TimelineEvent,
 } from "../modules/domain";
 
-export interface CaseInfo {
-  title: string;
-  status: string;
-  summary: string;
-}
+import {
+  fetchCase,
+  fetchEvidence,
+  fetchLocations,
+  fetchPeople,
+  fetchTimeline,
+} from "./api/mysteryApi";
+import type { CaseInfo } from "./api/mysteryApi";
+
+// Demo 9: CaseInfo ist die Form einer Backend-Antwort und liegt jetzt in der API-Schicht.
+// Weiter-Export, damit bestehende Imports (Dashboard.tsx) unveraendert bleiben.
+export type { CaseInfo };
 
 export interface DashboardData {
   caseInfo: CaseInfo;
@@ -18,18 +25,6 @@ export interface DashboardData {
   locations: Location[];
   timeline: TimelineEvent[];
   bookmarks: string[];
-}
-
-// Exercise 6 – Demo 5, Task 2: Daten kommen jetzt vom lokalen Backend
-// (GET /api/<resource>) statt aus den statischen public/data/*.json-Dateien.
-async function loadJson<T>(resource: string): Promise<T> {
-  const response = await fetch(`/api/${resource}`);
-
-  if (!response.ok) {
-    throw new Error(`${resource}: HTTP ${response.status}`);
-  }
-
-  return (await response.json()) as T;
 }
 
 function loadBookmarks(): string[] {
@@ -54,13 +49,17 @@ function loadBookmarks(): string[] {
   }
 }
 
-export async function loadDashboardData(): Promise<DashboardData> {
+// Exercise 6 – Demo 9: Kein fetch mehr hier. Die Daten kommen ueber die API-Schicht.
+// Diese Datei setzt nur die Antworten zusammen und ergaenzt die Bookmarks (localStorage).
+export async function loadDashboardData(
+  signal?: AbortSignal,
+): Promise<DashboardData> {
   const [caseInfo, evidence, people, locations, timeline] = await Promise.all([
-    loadJson<CaseInfo>("case"),
-    loadJson<Evidence[]>("evidence"),
-    loadJson<Person[]>("people"),
-    loadJson<Location[]>("locations"),
-    loadJson<TimelineEvent[]>("timeline"),
+    fetchCase({ signal }),
+    fetchEvidence({ signal }),
+    fetchPeople({ signal }),
+    fetchLocations({ signal }),
+    fetchTimeline({ signal }),
   ]);
 
   return {

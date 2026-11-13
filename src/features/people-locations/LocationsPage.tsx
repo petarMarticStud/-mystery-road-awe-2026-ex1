@@ -6,17 +6,24 @@ import {
   ErrorState,
   LoadingState,
 } from "../../components/LoadStates";
-import { useFetch } from "../../hooks/useFetch";
+import { fetchLocations } from "../../api/mysteryApi";
+import type { Simulate } from "../../api/mysteryApi";
+import { useApi } from "../../hooks/useApi";
 import { LocationCard } from "./LocationCard";
 
 // Nur fuer die Entwicklung: steuert die Simulation im Backend (siehe Demo 4).
+// Demo 9: Hier steht nur noch, WAS simuliert wird. Wie die Query-Parameter
+// heissen (?delay=, ?fail=1, ...), weiss nur die API-Schicht.
 const SIMULATIONS = {
-  normal: { label: "Normal", query: "" },
-  slow: { label: "Slow (3 s)", query: "?delay=3000" },
-  error: { label: "Server error (500)", query: "?fail=1" },
-  slowError: { label: "Slow error (2 s, then 500)", query: "?delay=2000&fail=1" },
-  empty: { label: "Empty response", query: "?empty=1" },
-};
+  normal: { label: "Normal", simulate: {} },
+  slow: { label: "Slow (3 s)", simulate: { delayMs: 3000 } },
+  error: { label: "Server error (500)", simulate: { fail: true } },
+  slowError: {
+    label: "Slow error (2 s, then 500)",
+    simulate: { delayMs: 2000, fail: true },
+  },
+  empty: { label: "Empty response", simulate: { empty: true } },
+} satisfies Record<string, { label: string; simulate: Simulate }>;
 type Simulation = keyof typeof SIMULATIONS;
 
 export function LocationsPage() {
@@ -24,11 +31,13 @@ export function LocationsPage() {
   // Exercise 6 – Demo 7: nur fuer die Vorfuehrung. Ausgeschaltet zeigt es die Race Condition.
   const [cancelStale, setCancelStale] = useState(true);
 
-  // Exercise 6 – Demo 8: Laden, Lade-/Fehler-/Leer-State und Abbrechen kommen aus dem Hook.
-  // Aendert sich die Simulation, aendert sich die URL -> der Hook laedt neu.
-  const { state, reload } = useFetch<Location[]>(
-    `/api/locations${SIMULATIONS[simulation].query}`,
-    { cancelStale },
+  // Exercise 6 – Demo 8/9: WAS geladen wird kommt aus der API-Schicht (fetchLocations),
+  // WIE (Ladezustand, Fehler, Abbrechen) aus dem Hook. Aendert sich simulation -> neu laden.
+  const { state, reload } = useApi<Location[]>(
+    (signal) =>
+      fetchLocations({ signal, simulate: SIMULATIONS[simulation].simulate }),
+    [simulation],
+    { cancelStale, label: SIMULATIONS[simulation].label },
   );
 
   return (

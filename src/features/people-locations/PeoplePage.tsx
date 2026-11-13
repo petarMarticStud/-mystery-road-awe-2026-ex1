@@ -6,14 +6,19 @@ import {
   ErrorState,
   LoadingState,
 } from "../../components/LoadStates";
-import { useFetch } from "../../hooks/useFetch";
+import { fetchPeople } from "../../api/mysteryApi";
+import { useApi } from "../../hooks/useApi";
 import { PersonCard } from "./PersonCard";
 
-// Exercise 6 – Demo 8: Zweite Stelle, die den Hook useFetch verwendet.
-// Laden, Fehler, Abbrechen kommen aus dem Hook. Hier steht nur noch, WAS geladen
-// und WIE es angezeigt wird.
+// Exercise 6 – Demo 8/9: UI-Schicht. Kein fetch, keine URL.
+// WAS geladen wird: fetchPeople (API-Schicht). WIE: useApi (Hook).
+// Hier steht nur noch, wie die Zustaende aussehen.
 export function PeoplePage() {
-  const { state, reload } = useFetch<Person[]>("/api/people");
+  const { state, reload } = useApi<Person[]>(
+    (signal) => fetchPeople({ signal }),
+    [],
+    { label: "people" },
+  );
 
   return (
     <Panel title="People">

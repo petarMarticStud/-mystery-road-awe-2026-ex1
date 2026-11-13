@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import type { DependencyList } from "react";
 
-// Exercise 6 – Demo 8: Wiederverwendbarer Custom Hook.
-// Fasst zusammen, was in Demo 5–7 direkt in LocationsPage stand:
-//   Demo 5: fetch in einem useEffect
+// Exercise 6 – Demo 9: Anwendungslogik-Schicht (vorher useFetch aus Demo 8).
+// Der Hook weiss, WIE geladen wird (Ladezustand, Fehler, Abbrechen, Retry),
+// aber nicht mehr, WOHER: keine URL, kein fetch. Das "Woher" bekommt er als
+// Funktion aus der API-Schicht (z. B. fetchPeople).
+//   Demo 5: Laden in einem useEffect
 //   Demo 6: EIN State-Objekt fuer loading / error / success (leer = success mit [])
 //   Demo 7: AbortController im Cleanup gegen veraltete Antworten
 
@@ -11,14 +14,19 @@ export type FetchState<T> =
   | { status: "error"; message: string }
   | { status: "success"; data: T };
 
-interface UseFetchOptions {
+interface UseApiOptions {
   // Demo 7: veraltete Anfragen abbrechen. Nur zum Vorfuehren abschaltbar.
   cancelStale?: boolean;
+  // Nur fuer die Konsolen-Ausgabe.
+  label?: string;
 }
 
-export function useFetch<T>(
-  url: string,
-  { cancelStale = true }: UseFetchOptions = {},
+export function useApi<T>(
+  // Die Ladefunktion bekommt das Abbruch-Signal und gibt die Daten zurueck.
+  load: (signal: AbortSignal) => Promise<T>,
+  // Wann neu geladen werden soll (wie bei useEffect), z. B. [simulation].
+  deps: DependencyList,
+  { cancelStale = true, label = "request" }: UseApiOptions = {},
 ) {
   const [state, setState] = useState<FetchState<T>>({ status: "loading" });
   // Wird von reload() erhoeht und startet dadurch den Effect neu ("Try again").
@@ -34,24 +42,19 @@ export function useFetch<T>(
     // Jeder neue Ladevorgang beginnt wieder im Ladezustand.
     setState({ status: "loading" });
 
-    async function load() {
-      console.log(`[#${requestId}] Anfrage gestartet: ${url}`);
+    async function run() {
+      console.log(`[#${requestId}] Anfrage gestartet: ${label}`);
       try {
-        const response = await fetch(url, {
-          signal: cancelStale ? controller.signal : undefined,
-        });
-
-        if (!response.ok) {
-          throw new Error(`The server answered with HTTP ${response.status}.`);
-        }
-
-        const data = (await response.json()) as T;
-        console.log(`[#${requestId}] Antwort angezeigt: ${url}`);
+        // Ohne cancelStale bekommt die API ein Signal, das nie abbricht (Demo-7-Vorfuehrung).
+        const data = await load(
+          cancelStale ? controller.signal : new AbortController().signal,
+        );
+        console.log(`[#${requestId}] Antwort angezeigt: ${label}`);
         setState({ status: "success", data });
       } catch (error) {
         // Abgebrochen heisst: Diese Anfrage ist veraltet. Kein Fehler, nichts anzeigen.
         if (controller.signal.aborted) {
-          console.log(`[#${requestId}] abgebrochen, Antwort ignoriert: ${url}`);
+          console.log(`[#${requestId}] abgebrochen, Antwort ignoriert: ${label}`);
           return;
         }
         setState({
@@ -62,16 +65,18 @@ export function useFetch<T>(
       }
     }
 
-    load();
+    run();
 
-    // Cleanup: laeuft, bevor der Effect mit neuer url/attempt erneut startet, und beim Unmount.
+    // Cleanup: laeuft, bevor der Effect mit neuen deps/attempt erneut startet, und beim Unmount.
     return () => {
       if (cancelStale) {
-        console.log(`[#${requestId}] Cleanup: breche Anfrage ab (${url})`);
+        console.log(`[#${requestId}] Cleanup: breche Anfrage ab (${label})`);
         controller.abort();
       }
     };
-  }, [url, attempt, cancelStale]);
+    // `load` steht absichtlich NICHT hier: Eine Inline-Funktion ist bei jedem Rendern neu
+    // und wuerde sonst endlos neu laden. Wann neu geladen wird, sagen die deps.
+  }, [...deps, attempt, cancelStale]);
 
   function reload() {
     setAttempt((previous) => previous + 1);

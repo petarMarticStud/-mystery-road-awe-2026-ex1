@@ -664,3 +664,106 @@ Kurz zum Vortragen: „Ein Custom Hook ist eine Funktion mit use-Präfix, die se
 Der Hook entscheidet nur, **in welchem Zustand** die Daten sind. **Wie** jeder Zustand aussieht, ist Sache der Komponente. Die Bausteine `LoadingState`/`ErrorState`/`EmptyState` werden zwar geteilt, aber Text und Erfolgsdarstellung sind pro Seite verschieden.
 
 Kurz zum Vortragen: „Beide Seiten rufen nur noch useFetch mit ihrer URL auf. Eingespart sind State, Effect, Fehlerbehandlung, Abbrechen und Retry. Pro Seite bleiben URL, Datentyp, Texte und wie die Daten gerendert werden, bei Locations zusätzlich die Simulationsauswahl.“
+
+---
+
+# Demo 9: UI, Anwendungslogik und API-Zugriff trennen
+
+## Aufgabe 1: Drei Schichten
+
+```
+Komponente (UI)          PeoplePage, LocationsPage, App
+     │  ruft auf: useApi(...)  bzw. loadDashboardData()
+     ▼
+Hook / Anwendungslogik   src/hooks/useApi.ts, src/dashboardData.ts
+     │  ruft auf: fetchPeople(), fetchLocations(), ...
+     ▼
+API-Schicht              src/api/mysteryApi.ts   ← einziges fetch
+     │
+     ▼
+Backend                  GET /api/...
+```
+
+| Schicht | Datei | weiß | weiß nicht |
+|---|---|---|---|
+| API | `src/api/mysteryApi.ts` | URLs (`/api/people`), Query-Parameter (`?delay=`, `?fail=1`, `?empty=1`), Form der Antworten (`CaseInfo`, `Person[]`), HTTP-Status prüfen | React, State, Ladezustand |
+| Anwendungslogik | `src/hooks/useApi.ts` | Ladezustand, Fehler, Abbrechen (AbortController), Retry | URLs, `fetch`, was angezeigt wird |
+| Anwendungslogik | `src/dashboardData.ts` | alle Daten für die App zusammensetzen, Bookmarks aus `localStorage` | URLs, `fetch` |
+| UI | Komponenten | Texte, Karten, welche Daten sie brauchen | URLs, `fetch`, AbortController |
+
+Was sich geändert hat:
+
+- **Neu `src/api/mysteryApi.ts`:** Eine Funktion pro Endpunkt (`fetchCase`, `fetchEvidence`, `fetchPeople`, `fetchLocations`, `fetchTimeline`). Alle nutzen intern `getJson<T>()`, das als einziges `fetch` aufruft, `response.ok` prüft und `json()` liefert. Optionen: `signal` (zum Abbrechen) und `simulate` (Backend-Simulation aus Demo 4).
+- **`useFetch(url)` wurde zu `useApi(load, deps)`:** Der Hook bekommt keine URL mehr, sondern eine Ladefunktion aus der API-Schicht. Er ruft sie mit dem `signal` seines AbortControllers auf. `deps` sagt, wann neu geladen wird, wie bei `useEffect`.
+  ```tsx
+  // PeoplePage
+  useApi<Person[]>((signal) => fetchPeople({ signal }), []);
+  // LocationsPage
+  useApi<Location[]>(
+    (signal) => fetchLocations({ signal, simulate: SIMULATIONS[simulation].simulate }),
+    [simulation],
+    { cancelStale },
+  );
+  ```
+  `load` steht absichtlich nicht im Abhängigkeitsarray. Eine Inline-Pfeilfunktion ist bei jedem Rendern ein neues Objekt, das würde endlos neu laden.
+- **`LocationsPage`:** Die Simulation steht nicht mehr als Query-String (`"?delay=3000"`) in der Komponente, sondern als Objekt (`{ delayMs: 3000 }`). Wie der Parameter heißt, weiß nur die API-Schicht.
+- **`dashboardData.ts`:** Das eigene `loadJson` mit `fetch` ist weg. `loadDashboardData()` ruft die fünf API-Funktionen auf. `CaseInfo` liegt jetzt in der API-Schicht und wird von hier weiter exportiert, damit `Dashboard.tsx` unverändert bleibt.
+
+Getestet: `tsc` und ESLint ohne Fehler. Headless-Edge: Dashboard, People, Locations, Timeline und Evidence laden. Die erzeugten URLs der API-Schicht sind mit einem Fake-`fetch` geprüft: `/api/locations`, `?delay=3000`, `?delay=2000&fail=1`, `?empty=1`, also dieselben wie vorher.
+
+## Aufgabe 2: Keine Komponente ruft `fetch` direkt auf
+
+```
+> grep -rn "fetch(" src
+src/api/mysteryApi.ts:49:  const response = await fetch(
+
+> grep -rn '"/api\|`/api' src
+src/api/mysteryApi.ts:13:const BASE_URL = "/api";
+```
+
+In der ganzen React-App gibt es genau einen `fetch`-Aufruf und genau eine Stelle mit der Backend-URL, beide in der API-Schicht. (`modules/data.ts` gehört zur alten Vanilla-App, nicht zu React.)
+
+### Selbst vorführen
+
+1. Die Suche oben zeigen (VS Code: Strg+Shift+F nach `fetch(` in `src`).
+2. `npm.cmd run server` und `npm.cmd run dev`: Alle Seiten laden wie vorher. Simulation und Race-Fix auf der Locations-Seite funktionieren unverändert.
+3. `src/api/mysteryApi.ts` öffnen: „Hier und nur hier steht, wie das Backend aussieht.“
+
+## Frage 1: Wenn sich URLs oder Antwortform morgen ändern, welche Dateien muss ich anfassen?
+
+**URLs ändern sich** (z. B. `/api/people` wird `/v2/persons`): **eine Datei**, `src/api/mysteryApi.ts`. Entweder `BASE_URL` ändern oder den Ressourcennamen in `fetchPeople`. Hook, `dashboardData.ts` und Komponenten bleiben gleich, weil sie nur `fetchPeople()` kennen.
+
+**Antwortform ändert sich**, Beispiel: Der Server liefert statt `[...]` jetzt `{ items: [...], total: 6 }`. Auch nur **`mysteryApi.ts`**: Dort wird ausgepackt, und `fetchPeople` gibt weiterhin `Person[]` zurück.
+```ts
+export async function fetchPeople(options?: RequestOptions) {
+  const body = await getJson<{ items: Person[] }>("people", options);
+  return body.items;
+}
+```
+
+**Feldnamen ändern sich** (z. B. `role` wird `position`): Hier gibt es zwei Wege.
+- In `mysteryApi.ts` auf die alte Form umrechnen (`{ ...p, role: p.position }`). Dann ist es wieder **nur eine Datei**.
+- Oder die App übernimmt den neuen Namen. Dann ändern sich der Typ in `modules/domain.ts` und jede Komponente, die `role` anzeigt (`PeoplePage`, `PersonCard`, `PersonDetailPage`). Das wäre aber eine bewusste Entscheidung und keine Pflicht.
+
+Keine Komponente muss sich ändern, solange die API-Schicht die gewohnten Typen zurückgibt.
+
+Vorher (Demo 8) stand die URL in `LocationsPage`, `PeoplePage` und `dashboardData.ts`, die Simulations-Parameter direkt im Query-String der Komponente. Das wären drei bis vier Dateien gewesen, darunter Komponenten.
+
+Kurz zum Vortragen: „Bei geänderten URLs oder einer anderen Antwortform ändere ich nur mysteryApi.ts. Solange die API-Schicht dieselben Typen zurückgibt, merkt keine Komponente etwas davon.“
+
+## Frage 2: Was spricht gegen diese Trennung in einer kleinen App? Lohnt es sich hier?
+
+**Dagegen:**
+
+- **Mehr Dateien und Sprünge:** Um zu verstehen, was `PeoplePage` lädt, muss man durch drei Dateien gehen (Komponente → `useApi` → `mysteryApi`). Ein `fetch("/api/people")` direkt im Effect ist auf einen Blick klar.
+- **Abstraktion, die man erst verstehen muss:** `useApi(load, deps)` ist schwerer zu lesen als ein normaler `useEffect`. Das `deps`-Argument und die Regel „`load` steht nicht im Abhängigkeitsarray“ muss man kennen, und das ESLint-Plugin für Hooks könnte das nicht mehr automatisch prüfen.
+- **Overkill**, wenn es nur ein oder zwei Endpunkte gibt, die sich nie ändern, oder bei einem Prototyp, der bald weggeworfen wird. Dann kostet die Trennung mehr, als sie spart.
+- **Falsche Allgemeinheit:** Man baut für „vielleicht ändert sich das Backend mal“. Ändert es sich nie, war es umsonst.
+
+**Meine Einschätzung für dieses Projekt: ja, gerechtfertigt, aber knapp.**
+
+- Die **API-Schicht** lohnt sich auf jeden Fall: Sie ist eine kleine Datei, und vorher stand die URL an drei Stellen und die Simulations-Parameter in einer Komponente.
+- Der **Hook** lohnt sich, weil er an zwei Stellen verwendet wird und den Race-Fix aus Demo 7 enthält. Diese Logik möchte man nicht kopieren.
+- Eine weitere Schicht (z. B. Repository-Klassen, Caching, eigene Fehlerklassen) wäre hier übertrieben.
+
+Kurz zum Vortragen: „Dagegen spricht: mehr Dateien und mehr Indirektion, für eine App mit fünf GET-Endpunkten ist das schnell zu viel. Hier lohnt es sich trotzdem, weil die URL vorher an drei Stellen stand und der Abbruch-Code nur einmal existieren soll. Mehr Schichten würde ich nicht einführen.“
