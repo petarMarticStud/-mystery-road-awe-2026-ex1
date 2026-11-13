@@ -484,3 +484,84 @@ In React ist der Spinner kein eigener Zustand, den man ausschalten muss. Er ist 
 Ganz unmöglich ist der Fehler nicht: Würde man den `catch`-Block vergessen, bliebe der State bei `"loading"`. Er ist aber schwerer zu machen, weil man nur noch an einer Stelle festlegt, was angezeigt wird. Außerdem muss man nicht in jedem Pfad an ein Aufräumen denken.
 
 Kurz zum Vortragen: „In der Vanilla-App musste der Spinner auf jedem Weg manuell versteckt werden, und im Fehlerpfad wurde das vergessen. In React wird der Spinner aus dem State abgeleitet: Ich setze im Erfolg success und im catch error, und der Spinner verschwindet automatisch.“
+
+---
+
+# Demo 7: Request-Races und Abbrechen
+
+## Aufgabe 1: Race Condition erzeugen
+
+Ort: `src/features/people-locations/LocationsPage.tsx`. Die Seite lädt bei jeder Änderung der Simulation neu (`[simulation, attempt]` im Abhängigkeitsarray). Mit „Slow (3 s)“ (`?delay=3000`) antwortet der Server erst nach 3 Sekunden. Wählt man in dieser Zeit „Empty response“, laufen zwei Anfragen gleichzeitig:
+
+| Zeit | Ereignis | Anzeige |
+|---|---|---|
+| 0 s | Anfrage #1 `?delay=3000` startet | Spinner |
+| 0,5 s | Auswahl „Empty“, Effect läuft erneut, Anfrage #2 `?empty=1` startet | Spinner |
+| ~0,5 s | #2 antwortet sofort mit `[]`, `setState(success, [])` | „No locations recorded“ |
+| 3 s | #1 antwortet mit 6 Orten, `setState(success, 6 Orte)` | **6 Orte**, obwohl „Empty“ ausgewählt ist |
+
+Ja, ohne Schutz gewinnt die ältere Antwort, weil sie zuletzt ankommt. React weiß nicht, dass sie veraltet ist. `setState` überschreibt einfach den aktuellen Zustand.
+
+## Aufgabe 2: Fix mit AbortController
+
+```tsx
+useEffect(() => {
+  const controller = new AbortController();      // pro Effect-Durchlauf ein eigener
+  setState({ status: "loading" });
+
+  async function loadLocations() {
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      ...
+      setState({ status: "success", data });
+    } catch (error) {
+      if (controller.signal.aborted) return;     // veraltet: nichts anzeigen
+      setState({ status: "error", message: ... });
+    }
+  }
+  loadLocations();
+
+  return () => controller.abort();               // Cleanup bricht die alte Anfrage ab
+}, [simulation, attempt]);
+```
+
+- Jeder Effect-Durchlauf erzeugt einen eigenen `AbortController`. Das `signal` wird an `fetch` übergeben.
+- Ändert sich `simulation`, ruft React zuerst den Cleanup des alten Durchlaufs auf. Dieser ruft `controller.abort()` auf.
+- Das `fetch` (oder `response.json()`) der alten Anfrage wirft dann einen `AbortError`. Im `catch` erkennen wir das an `controller.signal.aborted` und beenden die Funktion, ohne State zu setzen. Ein Abbruch ist kein Fehler, deshalb erscheint auch kein roter Fehlerkasten.
+- Im Network-Tab steht die alte Anfrage als „(canceled)“. Der Server arbeitet trotzdem weiter und antwortet nach 3 s, der Browser verwirft die Antwort aber.
+
+Für die Vorführung gibt es die Checkbox „Cancel stale requests (Demo 7 fix)“ (nur im Dev-Modus). Ist sie aus, wird kein `signal` übergeben und nicht abgebrochen. Dann sieht man die Race Condition. In der Konsole stehen die Anfragen nummeriert (`[#1] Anfrage gestartet …`, `[#1] Cleanup: breche Anfrage ab …`, `[#2] Antwort angezeigt …`).
+
+### Selbst vorführen
+
+1. `npm.cmd run server` und `npm.cmd run dev`, React-App öffnen, People & Locations → Locations, DevTools mit Konsole und Network öffnen.
+2. Checkbox **aus**. „Slow (3 s)“ wählen, sofort danach „Empty response“.
+3. Erst erscheint „No locations recorded“, nach 3 s plötzlich die 6 Orte. Das ist der veraltete Treffer. Konsole: `[#2] Antwort angezeigt: Empty …`, danach `[#1] Antwort angezeigt: Slow (3 s) (6 Orte)`.
+4. Checkbox **an**, Schritt 2 wiederholen.
+5. „No locations recorded“ bleibt stehen. Konsole: `[#…] Cleanup: breche Anfrage ab (Slow (3 s))`, `abgebrochen, Antwort ignoriert`. Network: Anfrage mit `delay=3000` steht als „(canceled)“.
+
+## Frage 1: Welche genaue Abfolge lässt das veraltete Ergebnis gewinnen?
+
+1. Anfrage A (langsam) startet.
+2. Die Abhängigkeit ändert sich, der Effect läuft erneut. Anfrage B (schnell) startet. A läuft weiter, niemand hält sie auf.
+3. B kommt zuerst an und setzt den State. Die Anzeige stimmt.
+4. A kommt danach an und setzt den State ebenfalls. Wer zuletzt `setState` aufruft, gewinnt. Die Anzeige passt nicht mehr zur Auswahl.
+
+Ursache: Die Antworten kommen nicht in der Reihenfolge an, in der die Anfragen gestartet wurden, und die alte Anfrage darf noch State schreiben.
+
+Kurz zum Vortragen: „Die alte, langsame Anfrage läuft weiter, nachdem schon eine neue gestartet ist. Die neue antwortet zuerst, die alte zuletzt, und weil der letzte setState gewinnt, überschreibt die alte Antwort die neue.“
+
+## Frage 2: Wie hängen AbortController und Cleanup zusammen?
+
+Das sind zwei verschiedene Dinge, die ich verbinde:
+
+- Der **Cleanup** ist eine React-Funktion. React ruft ihn selbst auf, bevor der Effect mit neuen Abhängigkeiten erneut läuft, und beim Unmount. React weiß aber nichts über `fetch`.
+- **`AbortController`** ist eine Browser-API. Sie bricht die Netzwerkanfrage ab, weiß aber nichts davon, wann React neu rendert.
+
+In meiner Umsetzung ist das Abbrechen genau das, was **im** Cleanup passiert: `return () => controller.abort();`. Der Cleanup liefert den richtigen Zeitpunkt („diese Anfrage ist jetzt veraltet“), der AbortController setzt ihn um. Weil der Controller im Effect erzeugt wird, gehört jeder Cleanup zu genau seiner eigenen Anfrage (Closure). Der Cleanup von Durchlauf 1 bricht also nur Anfrage 1 ab, nie die neue.
+
+Dazu kommt der `catch`: Nach dem Abbruch wirft `fetch` einen `AbortError`. Den fange ich ab und setze keinen State. Sonst würde statt der veralteten Daten ein falscher Fehler angezeigt.
+
+Beim Verlassen der Seite (Unmount) läuft derselbe Cleanup, die Anfrage wird abgebrochen, und es wird kein State einer Komponente gesetzt, die es nicht mehr gibt.
+
+Kurz zum Vortragen: „React ruft den Cleanup auf, wenn die Anfrage veraltet ist. In diesem Cleanup rufe ich controller.abort() auf. Der Cleanup bestimmt also das Wann, der AbortController das Wie. Im catch ignoriere ich den AbortError, damit kein falscher Fehler erscheint.“

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Location } from "../../../modules/domain";
 import { Panel } from "../../components/Panel";
 import {
@@ -31,14 +31,27 @@ export function LocationsPage() {
   // Wird bei "Try again" erhoeht und startet dadurch den Effect neu.
   const [attempt, setAttempt] = useState(0);
 
+  // Exercise 6 – Demo 7: nur fuer die Vorfuehrung. Ausgeschaltet zeigt es die Race Condition.
+  const [cancelStale, setCancelStale] = useState(true);
+  // Zaehlt die Anfragen, damit man in der Konsole sieht, welche Antwort zu welcher Anfrage gehoert.
+  const requestCounter = useRef(0);
+
   useEffect(() => {
+    // Exercise 6 – Demo 7: Jeder Effect-Durchlauf bekommt seinen EIGENEN AbortController.
+    const controller = new AbortController();
+    const requestId = ++requestCounter.current;
+    const label = SIMULATIONS[simulation].label;
+
     // Jeder neue Ladevorgang beginnt wieder im Ladezustand.
     setState({ status: "loading" });
 
     async function loadLocations() {
+      console.log(`[#${requestId}] Anfrage gestartet: ${label}`);
       try {
         const response = await fetch(
           `/api/locations${SIMULATIONS[simulation].query}`,
+          // Mit signal kann der Browser die Anfrage abbrechen.
+          { signal: cancelStale ? controller.signal : undefined },
         );
 
         if (!response.ok) {
@@ -46,8 +59,14 @@ export function LocationsPage() {
         }
 
         const data = (await response.json()) as Location[];
+        console.log(`[#${requestId}] Antwort angezeigt: ${label} (${data.length} Orte)`);
         setState({ status: "success", data });
       } catch (error) {
+        // Abgebrochen heisst: Diese Anfrage ist veraltet. Kein Fehler, nichts anzeigen.
+        if (controller.signal.aborted) {
+          console.log(`[#${requestId}] abgebrochen, Antwort ignoriert: ${label}`);
+          return;
+        }
         setState({
           status: "error",
           message:
@@ -57,9 +76,16 @@ export function LocationsPage() {
     }
 
     loadLocations();
-    // Hinweis: Wechselt man die Simulation, bevor die alte Antwort da ist,
-    // kann eine veraltete Antwort gewinnen -> wird in Demo 7 behoben.
-  }, [simulation, attempt]);
+
+    // Cleanup: React ruft das auf, BEVOR der Effect mit neuen Abhaengigkeiten
+    // erneut laeuft (oder beim Unmount). Dann ist diese Anfrage veraltet.
+    return () => {
+      if (cancelStale) {
+        console.log(`[#${requestId}] Cleanup: breche Anfrage ab (${label})`);
+        controller.abort();
+      }
+    };
+  }, [simulation, attempt, cancelStale]);
 
   return (
     <>
@@ -78,6 +104,17 @@ export function LocationsPage() {
               </option>
             ))}
           </select>
+        </label>
+      )}
+
+      {import.meta.env.DEV && (
+        <label className="simulation-control">
+          <input
+            type="checkbox"
+            checked={cancelStale}
+            onChange={(event) => setCancelStale(event.target.checked)}
+          />{" "}
+          Cancel stale requests (Demo 7 fix)
         </label>
       )}
 
