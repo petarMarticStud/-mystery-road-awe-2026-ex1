@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo 9 – Weg durch die Schichten</title>
+<style>
+  :root {
+    --ui: #2563eb;
+    --logic: #7c3aed;
+    --api: #059669;
+    --backend: #d97706;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --line: #d1d5db;
+    --bg: #f8fafc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, "Segoe UI", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 24px;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  header h1 { font-size: 1.15rem; margin: 0; flex: 1; }
+  .counter { font-variant-numeric: tabular-nums; color: var(--muted); }
+  button {
+    font: inherit;
+    padding: 8px 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: #f1f5f9; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  button.primary { background: var(--text); color: #fff; border-color: var(--text); }
+  button.primary:hover:not(:disabled) { background: #374151; }
+  main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
+    gap: 20px;
+    padding: 20px 24px;
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background:F solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  svg { width: 100%; height: auto; display: block; }
+  .info h2 { margin: 0 0 4px; font-size: 1.25rem; }
+  .info .where {
+    display: inline-block;
+    margin: 6px 0 12px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+  }
+  .info pre {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .info p { line-height: 1.55; margin: 0 0 12px; }
+  .data {
+    padding: 10px 12px;
+    border-left: 4px solid var(--muted);
+    background: #f8fafc;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.92rem;
+  }
+  .data b { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 2px; }
+  .data code { font-size: 0.88rem; }
+  .hint { color: var(--muted); font-size: 0.85rem; margin-top: 14px; }
+  .row { cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Demo 9 – Ein Klick auf „Slow (3 s)“ durch alle Schichten</h1>
+  <span class="counter" id="counter"></span>
+  <button id="prev" type="button">◀ Zurück</button>
+  <button id="next" type="button" class="primary">Weiter ▶</button>
+</header>
+
+<main>
+  <div class="card"><svg id="diagram" role="img" aria-label="Ablaufdiagramm der Schichten"></svg></div>
+  <div class="card info" id="info" aria-live="polite"></div>
+</main>
+
+<script>
+const LANES = {
+  ui:      { x: 110, color: "var(--ui)",      title: "UI",       file: "LocationsPage.tsx" },
+  logic:   { x: 330, color: "var(--logic)",   title: "Logik",    file: "useApi.ts" },
+  api:     { x: 550, color: "var(--api)",     title: "API",      file: "mysteryApi.ts" },
+  backend: { x: 790, color: "var(--backend)", title: "Backend",  file: "server/index.mjs" },
+};
+
+// kind: "call" = Aufruf (durchgezogen), "return" = Rueckgabe (gestrichelt), "self" = passiert innerhalb
+const STEPS = [
+  {
+    from: "ui", to: "ui", kind: "self", label: "setSimulation(\"slow\")",
+    title: "Du wählst „Slow (3 s)“",
+    where: "LocationsPage.tsx · Dropdown",
+    code: `onChange={(event) =>\n  setSimulation(event.target.value)}   // → "slow"`,
+    text: "Der State <code>simulation</code> wird <code>\"slow\"</code>. React rendert LocationsPage neu und kommt dabei wieder an der Zeile mit <code>useApi(...)</code> vorbei.",
+    data: "simulation = \"slow\"",
+  },
+  {
+    from: "ui", to: "logic", kind: "call", label: "useApi(load, [\"slow\"], options)",
+    title: "UI → Logik: useApi aufrufen",
+    where: "LocationsPage.tsx:36  →  useApi.ts:24",
+    code: `const { state, reload } = useApi<Location[]>(\n  (signal) => fetchLocations({ signal, simulate: { delayMs: 3000 } }),\n  ["slow"],\n  { cancelStale: true, label: "Slow (3 s)" },\n);`,
+    text: "Die Komponente gibt dem Hook drei Dinge: eine <b>Ladefunktion</b> (noch nicht ausgeführt, nur eine Anleitung), die <b>Abhängigkeiten</b> und <b>Optionen</b>. Hier steht keine URL und kein fetch.",
+    data: "load = (signal) => fetchLocations(...)   ·   deps = [\"slow\"]",
+  },
+  {
+    from: "logic", to: "logic", kind: "self", label: "deps geändert → Cleanup + neu",
+    title: "Logik: Effect startet neu",
+    where: "useApi.ts:39–43",
+    code: `}, [...deps, attempt, cancelStale]);   // ["normal",0,true] → ["slow",0,true]\n\n// 1. alter Cleanup:  controller.abort()\n// 2. Effect neu:\nconst controller = new AbortController();\nsetState({ status: "loading" });`,
+    text: "React sieht: <code>\"normal\"</code> wurde zu <code>\"slow\"</code>. Zuerst läuft der alte Cleanup, dann der Effect neu. Er erzeugt einen <b>neuen AbortController</b> nur für diese Anfrage und setzt den Ladezustand.",
+    data: "state = { status: \"loading\" }",
+  },
+  {
+    from: "logic", to: "ui", kind: "return", label: "{ state: loading }",
+    title: "Logik → UI: Spinner anzeigen",
+    where: "useApi.ts:85  →  LocationsPage.tsx:75",
+    code: `return { state, reload };          // useApi\n\n{state.status === "loading" && (   // LocationsPage\n  <LoadingState text="Loading locations…" />\n)}`,
+    text: "Weil sich der State geändert hat, rendert die Komponente neu. Sie liest <code>state.status</code> und zeigt den Spinner. Die Komponente entscheidet nur, <b>wie</b> „lädt“ aussieht.",
+    data: "Bildschirm: Spinner „Loading locations…“",
+  },
+  {
+    from: "logic", to: "api", kind: "call", label: "load(signal) → fetchLocations(...)",
+    title: "Logik → API: Ladefunktion ausführen",
+    where: "useApi.ts:49  →  LocationsPage.tsx:38  →  mysteryApi.ts:74",
+    code: `// useApi.ts:49\nconst data = await load(controller.signal);\n\n// load ist die Pfeilfunktion aus LocationsPage.tsx:38\n(signal) => fetchLocations({ signal, simulate: { delayMs: 3000 } })\n\n// mysteryApi.ts:74\nexport function fetchLocations(options) {\n  return getJson<Location[]>("locations", options);\n}`,
+    text: "Jetzt erst wird geladen. Der Hook ruft <code>load</code> auf und gibt sein <b>Abbruch-Signal</b> mit. <code>load</code> ist die Funktion, die die Komponente übergeben hat. Darin steht <code>fetchLocations</code>. <b>Der Hook selbst kennt die API-Schicht nicht</b>, die Komponente hat beide verbunden.",
+    data: "signal = controller.signal   ·   simulate = { delayMs: 3000 }",
+  },
+  {
+    from: "api", to: "api", kind: "self", label: "buildQuery → URL",
+    title: "API: URL bauen",
+    where: "mysteryApi.ts:36, 50",
+    code: `buildQuery({ delayMs: 3000 })   // → "?delay=3000"\n\n\`\${BASE_URL}/\${resource}\${buildQuery(simulate)}\`\n// "/api" + "/" + "locations" + "?delay=3000"`,
+    text: "Nur die API-Schicht weiß, dass die Verzögerung beim Backend <code>?delay=</code> heißt und dass Orte unter <code>/api/locations</code> liegen.",
+    data: "URL = \"/api/locations?delay=3000\"",
+  },
+  {
+    from: "api", to: "backend", kind: "call", label: "fetch(url, { signal })",
+    title: "API → Backend: das einzige fetch",
+    where: "mysteryApi.ts:49  →  server/index.mjs",
+    code: `const response = await fetch(\n  "/api/locations?delay=3000",\n  { signal },        // ← Signal aus dem Hook\n);`,
+    text: "Die Anfrage verlässt den Browser und geht über den Vite-Proxy an <code>localhost:3001</code>. Das Signal ist bis hierher durchgereicht worden: Hook → load → fetchLocations → getJson → fetch.",
+    data: "Server-Terminal: GET /api/locations?delay=3000",
+  },
+  {
+    from: "backend", to: "backend", kind: "self", label: "3 s warten, Datei lesen",
+    title: "Backend: Antwort vorbereiten",
+    where: "server/index.mjs:61, 70",
+    code: `await wait(3000);\nconst data = JSON.parse(await readFile("locations.json"));`,
+    text: "Ein eigenes Programm (Node, Port 3001), nicht Teil von React. Es wartet wegen <code>?delay=3000</code> drei Sekunden und liest die JSON-Datei.",
+    data: "data = [6 Orte, z. B. L01 „Human-Robot Interaction Laboratory“]",
+  },
+  {
+    from: "backend", to: "api", kind: "return", label: "HTTP 200 + JSON",
+    title: "Backend → API: Antwort",
+    where: "server/index.mjs:78  →  mysteryApi.ts:49",
+    code: `sendJson(response, 200, data);`,
+    text: "Die HTTP-Antwort kommt im Browser an. Das <code>await fetch(...)</code> in der API-Schicht ist jetzt fertig.",
+    data: "response.status = 200",
+  },
+  {
+    from: "api", to: "api", kind: "self", label: "response.ok? → json()",
+    title: "API: prüfen und auspacken",
+    where: "mysteryApi.ts:54–58",
+    code: `if (!response.ok) {\n  throw new Error(\`The server answered with HTTP \${response.status}.\`);\n}\nreturn (await response.json()) as T;`,
+    text: "Status 200 → kein Fehler. Aus dem JSON-Text wird ein JavaScript-Array. Bei 500 würde hier ein Fehler geworfen, der im <code>catch</code> des Hooks landet.",
+    data: "Location[] mit 6 Einträgen",
+  },
+  {
+    from: "api", to: "logic", kind: "return", label: "Location[]",
+    title: "API → Logik: Daten zurückgeben",
+    where: "mysteryApi.ts:58  →  useApi.ts:49",
+    code: `const data = await load(controller.signal);   // ← hier kommen sie an`,
+    text: "Das Promise von <code>load</code> ist erfüllt. Der Hook bekommt das Array, ohne zu wissen, woher es kam.",
+    data: "data = [6 Orte]",
+  },
+  {
+    from: "logic", to: "logic", kind: "self", label: "setState(success)",
+    title: "Logik: Erfolg speichern",
+    where: "useApi.ts:53",
+    code: `setState({ status: "success", data });`,
+    text: "Der Hook setzt den Zustand auf <code>success</code>. Das löst ein neues Rendern der Komponente aus. Die Abhängigkeiten sind gleich geblieben, also startet der Effect <b>nicht</b> erneut, es gibt keine Endlosschleife.",
+    data: "state = { status: \"success\", data: [6 Orte] }",
+  },
+  {
+    from: "logic", to: "ui", kind: "return", label: "{ state: success, data }",
+    title: "Logik → UI: neuer State",
+    where: "useApi.ts:85  →  LocationsPage.tsx:36",
+    code: `return { state, reload };                         // useApi\n\nconst { state, reload } = useApi<Location[]>(...); // LocationsPage`,
+    text: "Beim neuen Rendern gibt <code>useApi</code> den neuen State zurück. Die Komponente bekommt ihn in derselben Zeile, in der sie den Hook aufruft.",
+    data: "state.status = \"success\"",
+  },
+  {
+    from: "ui", to: "ui", kind: "self", label: "map → 6 LocationCards",
+    title: "UI: Daten anzeigen",
+    where: "LocationsPage.tsx:95",
+    code: `{state.status === "success" &&\n  state.data.map((location) => (\n    <LocationCard key={location.id} name={location.name} ... />\n  ))}`,
+    text: "Die Komponente macht aus jedem Ort eine Karte. Fertig: Auf dem Bildschirm steht u. a. <code>&lt;h3&gt;Human-Robot Interaction Laboratory&lt;/h3&gt;</code>.",
+    data: "Bildschirm: 6 Karten",
+  },
+];
+
+const ROW_H = 46;
+const TOP = 118;
+const WIDTH = 900;
+const HEIGHT = TOP + STEPS.length * ROW_H + 30;
+const svg = document.getElementById("diagram");
+const info = document.getElementById("info");
+let current = 0;
+
+function esc(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function el(name, attrs, text) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function drawStatic() {
+  svg.setAttribute("viewBox", `0 0 ${WIDTH} ${HEIGHT}`);
+  svg.innerHTML = "";
+
+  const defs = el("defs", {});
+  for (const [key, lane] of Object.entries(LANES)) {
+    const marker = el("marker", { id: `arrow-${key}`, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
+    marker.appendChild(el("path", { d: "M0,0 L10,5 L0,10 z", fill: lane.color }));
+    defs.appendChild(marker);
+  }
+  const grey = el("marker", { id: "arrow-grey", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
+  grey.appendChild(el("path", { d: "M0,0 L10,5 L0,10 z", fill: "#9ca3af" }));
+  defs.appendChild(grey);
+  svg.appendChild(defs);
+
+  // Bereiche: Browser (3 Schichten) und Node (Backend)
+  svg.appendChild(el("rect", { x: 14, y: 8, width: 652, height: HEIGHT - 16, rx: 14, fill: "#eef2ff", stroke: "#c7d2fe", "stroke-dasharray": "6 4" }));
+  svg.appendChild(el("text", { x: 30, y: 30, "font-size": 13, "font-weight": 700, fill: "#4f46e5" }, "BROWSER  (npm run dev)"));
+  svg.appendChild(el("rect", { x: 684, y: 8, width: 202, height: HEIGHT - 16, rx: 14, fill: "#fff7ed", stroke: "#fed7aa", "stroke-dasharray": "6 4" }));
+  svg.appendChild(el("text", { x: 700, y: 30, "font-size": 13, "font-weight": 700, fill: "#c2410c" }, "NODE  (npm run server)"));
+
+  for (const lane of Object.values(LANES)) {
+    svg.appendChild(el("rect", { x: lane.x - 90, y: 44, width: 180, height: 50, rx: 10, fill: "#fff", stroke: lane.color, "stroke-width": 2 }));
+    svg.appendChild(el("text", { x: lane.x, y: 65, "text-anchor": "middle", "font-size": 16, "font-weight": 700, fill: lane.color }, lane.title));
+    svg.appendChild(el("text", { x: lane.x, y: 84, "text-anchor": "middle", "font-size": 12, fill: "#6b7280" }, lane.file));
+    svg.appendChild(el("line", { x1: lane.x, y1: 94, x2: lane.x, y2: HEIGHT - 16, stroke: lane.color, "stroke-opacity": 0.35, "stroke-width": 2 }));
+  }
+
+  STEPS.forEach((step, index) => {
+    const y = TOP + index * ROW_H;
+    const group = el("g", { class: "row", "data-index": index });
+    group.appendChild(el("rect", { class: "hl", x: 18, y: y - ROW_H / 2 + 2, width: WIDTH - 36, height: ROW_H - 4, rx: 8, fill: "transparent" }));
+    group.appendChild(el("text", { class: "num", x: 34, y: y + 4, "font-size": 12, "font-weight": 700, "text-anchor": "middle" }, String(index + 1)));
+
+    const from = LANES[step.from];
+    const to = LANES[step.to];
+    if (step.kind === "self") {
+      const x = from.x;
+      // Ganz rechts (Backend) zeigt die Schleife nach links, damit das Label nicht abgeschnitten wird.
+      const side = step.from === "backend" ? -1 : 1;
+      group.appendChild(el("path", { class: "arrow", d: `M${x},${y - 9} h${34 * side} v18 h${-30 * side}`, fill: "none", "stroke-width": 2 }));
+      group.appendChild(el("text", { class: "label", x: x + 42 * side, y: y + 4, "font-size": 12.5, "text-anchor": side === 1 ? "start" : "end" }, step.label));
+    } else {
+      const dir = to.x > from.x ? 1 : -1;
+      const x1 = from.x + dir * 6;
+      const x2 = to.x - dir * 6;
+      const attrs = { class: "arrow", x1, y1: y, x2, y2: y, "stroke-width": 2 };
+      if (step.kind === "return") attrs["stroke-dasharray"] = "6 5";
+      group.appendChild(el("line", attrs));
+      group.appendChild(el("text", { class: "label", x: (from.x + to.x) / 2, y: y - 7, "font-size": 12.5, "text-anchor": "middle" }, step.label));
+    }
+    group.addEventListener("click", () => show(index));
+    svg.appendChild(group);
+  });
+
+  // Legende
+  const ly = HEIGHT - 4;
+  svg.appendChild(el("line", { x1: 700, y1: ly - 4, x2: 730, y2: ly - 4, stroke: "#6b7280", "stroke-width": 2 }));
+  svg.appendChild(el("text", { x: 736, y: ly, "font-size": 11, fill: "#6b7280" }, "Aufruf"));
+  svg.appendChild(el("line", { x1: 785, y1: ly - 4, x2: 815, y2: ly - 4, stroke: "#6b7280", "stroke-width": 2, "stroke-dasharray": "6 5" }));
+  svg.appendChild(el("text", { x: 821, y: ly, "font-size": 11, fill: "#6b7280" }, "Rückgabe"));
+}
+
+function show(index) {
+  current = Math.max(0, Math.min(STEPS.length - 1, index));
+  const step = STEPS[current];
+
+  svg.querySelectorAll(".row").forEach((group) => {
+    const i = Number(group.dataset.index);
+    const s = STEPS[i];
+    const lane = LANES[s.from];
+    const state = i === current ? "now" : i < current ? "done" : "todo";
+    const color = state === "todo" ? "#d1d5db" : state === "done" ? "#9ca3af" : lane.color;
+    const markerKey = state === "now" ? s.from : "grey";
+
+    const arrow = group.querySelector(".arrow");
+    arrow.setAttribute("stroke", color);
+    arrow.setAttribute("stroke-width", state === "now" ? 3.5 : 2);
+    arrow.setAttribute("marker-end", state === "todo" ? "" : `url(#arrow-${markerKey})`);
+    group.querySelector(".label").setAttribute("fill", state === "todo" ? "#d1d5db" : state === "now" ? "#111827" : "#6b7280");
+    group.querySelector(".label").setAttribute("font-weight", state === "now" ? 700 : 400);
+    group.querySelector(".num").setAttribute("fill", state === "todo" ? "#d1d5db" : state === "now" ? lane.color : "#9ca3af");
+    group.querySelector(".hl").setAttribute("fill", state === "now" ? "#ffffff" : "transparent");
+    group.querySelector(".hl").setAttribute("stroke", state === "now" ? lane.color : "none");
+  });
+
+  const lane = LANES[step.from];
+  info.innerHTML = `
+    <div class="counter">Schritt ${current + 1} von ${STEPS.length}</div>
+    <h2>${esc(step.title)}</h2>
+    <span class="where" style="background:${lane.color}">${esc(step.where)}</span>
+    <pre>${esc(step.code)}</pre>
+    <p>${step.text}</p>
+    <div class="data" style="border-left-color:${lane.color}"><b>Daten in diesem Schritt</b><code>${esc(step.data)}</code></div>
+    <p class="hint">Tasten: → / Leertaste = weiter, ← = zurück. Auf eine Zeile im Diagramm klicken springt dorthin.</p>`;
+
+  document.getElementById("counter").textContent = `${current + 1} / ${STEPS.length}`;
+  document.getElementById("prev").disabled = current === 0;
+  document.getElementById("next").disabled = current === STEPS.length - 1;
+}
+
+document.getElementById("prev").addEventListener("click", () => show(current - 1));
+document.getElementById("next").addEventListener("click", () => show(current + 1));
+document.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowRight" || event.key === " ") { event.preventDefault(); show(current + 1); }
+  if (event.key === "ArrowLeft") { event.preventDefault(); show(current - 1); }
+});
+
+drawStatic();
+// Start-Schritt per URL, z. B. demo9-schichten.html#5
+show((Number(location.hash.slice(1)) || 1) - 1);
+</script>
+</body>
+</html>

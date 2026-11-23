@@ -767,3 +767,135 @@ Kurz zum Vortragen: „Bei geänderten URLs oder einer anderen Antwortform ände
 - Eine weitere Schicht (z. B. Repository-Klassen, Caching, eigene Fehlerklassen) wäre hier übertrieben.
 
 Kurz zum Vortragen: „Dagegen spricht: mehr Dateien und mehr Indirektion, für eine App mit fünf GET-Endpunkten ist das schnell zu viel. Hier lohnt es sich trotzdem, weil die URL vorher an drei Stellen stand und der Abbruch-Code nur einmal existieren soll. Mehr Schichten würde ich nicht einführen.“
+
+---
+
+# Demo 10: Datenfluss und eine UX-Entscheidung
+
+## Aufgabe 1: Der komplette Weg eines Datensatzes
+
+Beispiel: der Ort **L01 „Human-Robot Interaction Laboratory“** auf der Seite People & Locations → Locations.
+
+```mermaid
+flowchart TD
+    A["① JSON-Datei<br/>public/data/locations.json<br/>id L01, name Human-Robot Interaction Laboratory"]
+    B["② Backend-Endpunkt<br/>server/index.mjs<br/>GET /api/locations → readFile → 200 + JSON"]
+    P["Vite-Proxy<br/>/api → localhost:3001"]
+    C["③ API-Schicht<br/>src/api/mysteryApi.ts<br/>fetchLocations → fetch /api/locations<br/>response.ok prüfen → json → Location[]"]
+    D["④ Custom Hook<br/>src/hooks/useApi.ts<br/>useEffect + AbortController<br/>setState success + data"]
+    E["⑤ Komponente<br/>LocationsPage.tsx<br/>state.data.map → LocationCard"]
+    F["⑥ Bildschirm<br/>article.location-card<br/>h3 Human-Robot Interaction Laboratory"]
+
+    E -- "useApi(load, [simulation])" --> D
+    D -- "load(controller.signal)" --> C
+    C -- "fetch + signal" --> P --> B
+    B -- "readFile" --> A
+    A -. "JSON-Text" .-> B
+    B -. "HTTP 200, Array mit 6 Orten" .-> C
+    C -. "Location[]" .-> D
+    D -. "state: success, data" .-> E
+    E -. "rendert" .-> F
+```
+
+Als Text (falls Mermaid nicht angezeigt wird):
+
+```
+Anfrage (nach unten)                                 Antwort (nach oben)
+───────────────────────────────────────────────────────────────────────────────
+⑤ LocationsPage   useApi(load, [simulation])         ◄── state = success, 6 Orte
+        │                                                 │ rendert 6 LocationCards
+④ useApi          AbortController, setState(loading) ◄── setState(success, data)
+        │ load(signal)                                    │
+③ mysteryApi      fetch("/api/locations", {signal})  ◄── response.ok? → json()
+        │ (Vite-Proxy → :3001)                            │
+② server          GET /api/locations                 ──► 200 + JSON
+        │ readFile                                        │
+① locations.json  [{ "id": "L01", "name": "Human-Robot Interaction Laboratory", ... }]
+
+⑥ Bildschirm: <article class="location-card"><h3>Human-Robot Interaction Laboratory</h3>
+              <p>The main development and testing laboratory for ReMotion.</p></article>
+```
+
+| Schritt | Datei | Was mit L01 passiert | Form der Daten |
+|---|---|---|---|
+| ① | `public/data/locations.json` | liegt als Text auf der Festplatte | JSON-Text |
+| ② | `server/index.mjs` | `readFile` + `JSON.parse`, dann `sendJson(response, 200, data)` | HTTP-Antwort, Body = JSON |
+| ③ | `src/api/mysteryApi.ts` | `fetch("/api/locations")`, `response.ok` geprüft, `response.json()` | JS-Array `Location[]` |
+| ④ | `src/hooks/useApi.ts` | `setState({ status: "success", data })` | `FetchState<Location[]>` |
+| ⑤ | `LocationsPage.tsx` | `state.data.map(...)` erzeugt `<LocationCard name="Human-Robot…" description="…"/>` | React-Elemente |
+| ⑥ | Browser | React schreibt `<article class="location-card"><h3>…</h3><p>…</p></article>` ins DOM | DOM / Pixel |
+
+Das `contains`-Feld von L01 (`"ReMotion robot"`, ...) wird zwar mitgeschickt, `LocationCard` zeigt aber nur `name` und `description`.
+
+### Selbst vorführen
+
+1. `public/data/locations.json` öffnen, L01 zeigen.
+2. Browser: `http://localhost:3001/api/locations`, dasselbe JSON vom Server.
+3. DevTools → Network, Filter auf **Fetch/XHR** (nicht „Doc“), Seite Locations neu laden: Anfrage `locations`, Antwort enthält L01.
+4. `mysteryApi.ts` (`getJson`) → `useApi.ts` (`setState`) → `LocationsPage.tsx` (`map`) kurz zeigen.
+5. DevTools → Elements: `<h3>Human-Robot Interaction Laboratory</h3>`.
+
+## Aufgabe 2: Eine UX-Entscheidung und was ich anders machen würde
+
+**Entscheidung: Leer und Fehler sehen bewusst verschieden aus.**
+
+| | Leer | Fehler |
+|---|---|---|
+| Rahmen | grau, **gestrichelt** | rot, **durchgezogen**, roter Hintergrund |
+| Ton | ruhig: „No locations recorded for this case.“ | Warnung: „⚠ Locations could not be loaded.“ + Grund |
+| Aktion | keine | „Try again“-Button |
+| Screenreader | normaler Text | `role="alert"`, wird sofort angesagt |
+
+Begründung: Leer und Fehler bedeuten für den Nutzer etwas ganz anderes. **Leer** heißt: „Es gibt hier nichts, alles in Ordnung.“ Erneut versuchen bringt nichts, deshalb gibt es keinen Button und keine Alarmfarbe. **Fehler** heißt: „Wir wissen nicht, ob es Daten gibt.“ Der Nutzer soll das merken und etwas tun können, deshalb Rot und „Try again“. Würden beide gleich aussehen (z. B. beide als leere Liste), hielte ein Ermittler einen Serverausfall für „keine Orte im Fall“. Das ist eine falsche Aussage über den Fall.
+
+Ehrlich: Das Aussehen habe ich nicht mit Nutzern getestet. Die Farben folgen den Variablen `--color-critical` und `--color-border` der bestehenden App, damit es zum Rest passt.
+
+**Was ich mit mehr Zeit anders machen würde:**
+
+1. **Fehlertext für Menschen:** „The server answered with HTTP 500.“ ist ein Entwicklertext. Ein Nutzer weiß nicht, was 500 heißt. Besser: „The case server is not responding right now. Please try again in a moment.“ Den HTTP-Status würde ich nur in der Konsole oder in einem aufklappbaren Detail zeigen.
+2. **Spinner verzögert anzeigen oder Skeleton-Karten:** Im Normalfall antwortet der lokale Server in wenigen Millisekunden. Der Spinner blitzt dann nur kurz auf, was unruhig wirkt. Besser: den Spinner erst nach ca. 300 ms zeigen oder graue Platzhalter-Karten in der Form der echten Karten, damit das Layout nicht springt.
+
+## Frage 1: Diagramm live durchgehen. Was bricht, wenn ein Schritt still ausfällt?
+
+Beispiel: In Schritt ③ fällt die Prüfung `if (!response.ok) throw ...` weg.
+
+Ablauf mit „Server error (500)“:
+1. Der Server antwortet mit 500 und dem Body `{ "error": "Simulated server error" }`.
+2. `fetch` wirft **nicht**, denn ein 500 ist für `fetch` eine gültige Antwort. Nur Netzwerkfehler werfen.
+3. Ohne die Prüfung macht `getJson` weiter: `response.json()` ergibt `{ error: "..." }` und wird als `Location[]` zurückgegeben. TypeScript merkt das nicht, weil `as T` nur eine Behauptung ist.
+4. Der Hook setzt `{ status: "success", data: { error: "..." } }`.
+5. Die Komponente ruft `state.data.map(...)` auf, aber ein Objekt hat kein `.map`. Das ergibt `TypeError: state.data.map is not a function`.
+6. React bricht das Rendern ab. Weil es keine Error Boundary gibt, wird die **ganze Seite weiß**, nicht nur die Orte-Liste.
+
+Woran man es merkt: weiße Seite, roter `TypeError` in der Konsole. Im Network-Tab steht `locations?fail=1` mit Status 500. Der eigene rote Fehlerkasten erscheint dagegen **nie**. Der Fehler wird also nicht als Fehler, sondern als Absturz sichtbar, und die Ursache (500) steht weit weg von der Stelle, wo es kracht (`map`).
+
+Noch gemeiner wäre es, wenn der Server bei einem Fehler zufällig ein leeres Array liefert. Dann gäbe es keinen Absturz, sondern es erschiene still „No locations recorded“, also falsche Information statt eines Fehlers.
+
+Zweites Beispiel, kürzer: Fällt in Schritt ④ das `controller.abort()` im Cleanup weg, bricht nichts sichtbar ab. Man sieht nur manchmal veraltete Daten (Race aus Demo 7). Das merkt man nur, wenn man gezielt mit „Slow“ testet. Gerade deshalb ist so ein Fehler schwer zu finden.
+
+Kurz zum Vortragen: „Fällt die response.ok-Prüfung weg, behandelt die App eine 500er-Antwort wie Daten. Das Fehlerobjekt landet als Orte-Liste im State, map wirft einen TypeError und die ganze Seite wird weiß. Man merkt es am Absturz in der Konsole, nicht an der Fehlermeldung, die eigentlich dafür da ist.“
+
+## Frage 2: Was hat der echte Server erzwungen, und war es vorher schon nötig?
+
+**Neu gebaut in Exercise 6, weil der Server langsam sein oder ausfallen kann:**
+
+| Was | Demo | Warum mit dem Server nötig |
+|---|---|---|
+| Ladezustand mit Spinner | 6 | Antwort kann Sekunden dauern |
+| Fehlerzustand mit Text und Retry | 6 | Server kann 500 liefern oder nicht laufen |
+| Leer-Zustand getrennt vom Fehler | 6 | Erfolg mit `[]` ist etwas anderes als Ausfall |
+| Abbrechen veralteter Anfragen | 7 | mehrere Anfragen gleichzeitig, falsche Reihenfolge |
+| Hook und API-Schicht | 8, 9 | dieselbe Logik an mehreren Stellen |
+
+**War das vorher konzeptionell auch schon nötig? Ja, fast alles, nur unsichtbar.**
+
+Auch das „sofortige“ Laden einer statischen Datei war nie sofort und nie sicher:
+
+- **Asynchron war es schon immer.** `fetch("data/locations.json")` gibt ein Promise zurück. Es gab immer einen Moment ohne Daten. Die App hatte deshalb schon in Exercise 5 `data === null` → „Loading data…“ in `App.tsx`. Man sah es nur kaum, weil es lokal Millisekunden dauerte.
+- **Fehler gab es schon immer.** Eine Datei kann fehlen (404), z. B. bei falschem `base`-Pfad auf GitHub Pages, oder kaputtes JSON enthalten. Die alte `loadJson` hatte deshalb schon `response.ok`. Die Vanilla-App hatte das nicht, und genau dort blieb der Spinner bei einem Fehler für immer hängen (Demo 6, Frage 2).
+- **Leer war schon möglich.** Eine Datei mit `[]` ist gültig. Vorher stand nur bei der Timeline „No events available.“.
+- **Abbrechen war teilweise schon nötig.** `App.tsx` hatte schon in Exercise 5 ein `cancelled`-Flag im Cleanup. Verlässt man die Komponente vor der Antwort, soll kein State mehr gesetzt werden. Ein echtes Race (zwei Anfragen, falsche Reihenfolge) gab es dagegen nicht, weil jede Datei nur einmal mit fester URL geladen wurde. Das kam erst mit wechselnden Parametern (Simulation) dazu.
+
+Wirklich neu ist also vor allem die **Reihenfolge-Frage** (Race). Alles andere war schon da, nur so schnell oder so selten, dass man es nicht bemerkt hat. Der langsame, manchmal fehlerhafte Server hat diese Fälle **sichtbar und testbar** gemacht. Genau dafür gibt es `?delay` und `?fail` (Demo 4, Frage 1).
+
+Kurz zum Vortragen: „Der Server hat Ladezustand, Fehlerzustand, Leer-Zustand und Abbrechen erzwungen. Konzeptionell war fast alles schon vorher nötig: fetch auf eine statische Datei ist auch asynchron und kann mit 404 scheitern, das hatten wir sogar schon teilweise. Wirklich neu ist nur die Race Condition, weil jetzt mehrere Anfragen mit verschiedenen Parametern gleichzeitig laufen können.“

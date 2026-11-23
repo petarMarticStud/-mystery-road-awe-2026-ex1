@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo 10 – Datenfluss & UX-Entscheidung</title>
+<style>
+  :root {
+    --file: #475569;
+    --backend: #d97706;
+    --api: #059669;
+    --logic: #7c3aed;
+    --ui: #2563eb;
+    --screen: #db2777;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --line: #d1d5db;
+    --bg: #f8fafc;
+    /* Farben der App (styles.css) fuer die Zustands-Vorschau */
+    --app-border: #d7dce4;
+    --app-muted: #5b6472;
+    --app-accent: #2f6fed;
+    --app-critical: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); }
+  header {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+    padding: 12px 24px; background: #fff; border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 1.1rem; margin: 0 12px 0 0; }
+  nav.tabs { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+  button {
+    font: inherit; padding: 8px 14px; border: 1px solid var(--line);
+    border-radius: 8px; background: #fff; cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: #f1f5f9; }
+  button:disabled { opacity: 0.35; cursor: default; }
+  nav.tabs button[aria-selected="true"] { background: var(--text); color: #fff; border-color: var(--text); }
+  .stepper { display: flex; align-items: center; gap: 8px; }
+  .counter { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
+  main { max-width: 1400px; margin: 0 auto; padding: 20px 24px 40px; }
+  section[hidden] { display: none; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 1000px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  h2 { margin: 0 0 6px; font-size: 1.3rem; }
+  h3 { margin: 0 0 10px; font-size: 1.05rem; }
+  .lead { color: var(--muted); margin: 0 0 16px; }
+  pre {
+    margin: 0; padding: 12px 14px; background: #0f172a; color: #e2e8f0;
+    border-radius: 8px; font-size: 0.84rem; line-height: 1.5; overflow-x: auto; white-space: pre;
+  }
+  code { font-family: Consolas, "Cascadia Mono", monospace; }
+  p { line-height: 1.55; }
+  .say {
+    margin-top: 14px; padding: 12px 14px; border-radius: 8px;
+    background: #fefce8; border: 1px solid #fde68a; line-height: 1.55;
+  }
+  .say b { display: block; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; color: #a16207; margin-bottom: 4px; }
+  .show { margin: 0; padding-left: 20px; line-height: 1.7; }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: #fff; }
+  .label-small { font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 6px; }
+  svg { width: 100%; height: auto; display: block; }
+  .clickable { cursor: pointer; }
+
+  /* ---- Zustands-Vorschau (nachgebaut wie in der App) ---- */
+  .mock { border: 1px solid var(--app-border); border-radius: 8px; padding: 14px; background: #fff; }
+  .mock .panel-title { font-weight: 700; margin: 0 0 10px; }
+  .ls { padding: 30px 18px; border-radius: 8px; text-align: center; }
+  .ls p { margin: 0 0 6px; }
+  .ls .t { font-weight: 600; }
+  .ls .d { color: var(--app-muted); font-size: 0.92rem; }
+  .ls--loading { color: var(--app-muted); }
+  .spinner {
+    width: 32px; height: 32px; margin: 0 auto 10px; border-radius: 50%;
+    border: 4px solid var(--app-border); border-top-color: var(--app-accent);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+  .ls--error { border: 2px solid var(--app-critical); background: #fdf0ee; color: var(--app-critical); }
+  .ls--error .d { color: var(--app-critical); opacity: 0.85; }
+  .ls--error button { margin-top: 6px; border-color: var(--app-critical); color: var(--app-critical); padding: 6px 14px; }
+  .ls--empty { border: 2px dashed var(--app-border); }
+  .skeleton { height: 54px; border-radius: 8px; margin-bottom: 8px; background: linear-gradient(90deg, #eef1f5 25%, #f7f8fa 50%, #eef1f5 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  .loc-card { border: 1px solid var(--app-border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .loc-card h4 { margin: 0 0 4px; font-size: 0.98rem; }
+  .loc-card p { margin: 0; font-size: 0.86rem; color: var(--app-muted); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eef0f3; vertical-align: top; }
+  th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+
+  /* ---- Frage 1: Vergleich ---- */
+  .compare-col h3 { display: flex; align-items: center; gap: 8px; }
+  .flow-step {
+    display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start;
+    padding: 10px 12px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #eef0f3;
+    color: #c4c9d1; transition: all 0.15s;
+  }
+  .flow-step .n { font-weight: 700; text-align: center; }
+  .flow-step code { font-size: 0.85rem; }
+  .flow-step.done { color: var(--text); opacity: 0.6; }
+  .flow-step.now { color: var(--text); opacity: 1; border-width: 2px; background: #fff; }
+  .ok .flow-step.now { border-color: var(--api); }
+  .bad .flow-step.now { border-color: var(--app-critical); }
+  .result { margin-top: 10px; min-height: 150px; }
+  .whitescreen { border: 1px solid var(--app-border); border-radius: 8px; height: 110px; background: #fff; display: flex; align-items: center; justify-content: center; color: #c4c9d1; font-size: 0.9rem; }
+  .console { margin-top: 8px; padding: 8px 10px; border-radius: 6px; background: #fff0f0; color: #b91c1c; font-family: Consolas, monospace; font-size: 0.82rem; border-left: 3px solid #dc2626; }
+
+  /* ---- Frage 2 ---- */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+  .b-hidden { background: #e0f2fe; color: #075985; }
+  .b-new { background: #fce7f3; color: #9d174d; }
+  .b-visible { background: #dcfce7; color: #166534; }
+  .b-missing { background: #fee2e2; color: #991b1b; }
+  .hint { color: var(--muted); font-size: 0.84rem; margin-top: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Demo 10</h1>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="a1">① Aufgabe 1 · Datenfluss</button>
+    <button role="tab" data-tab="a2">② Aufgabe 2 · UX</button>
+    <button role="tab" data-tab="f1">③ Frage 1 · Was bricht?</button>
+    <button role="tab" data-tab="f2">④ Frage 2 · Vorher / Nachher</button>
+  </nav>
+  <div class="stepper">
+    <span class="counter" id="counter"></span>
+    <button id="prev" type="button">◀</button>
+    <button id="next" type="button">▶</button>
+  </div>
+</header>
+
+<main>
+  <!-- ================= AUFGABE 1 ================= -->
+  <section id="a1" role="tabpanel">
+    <h2>Ein Datensatz von der Datei bis zum Bildschirm</h2>
+    <p class="lead">Beispiel: Ort <b>L01 „Human-Robot Interaction Laboratory“</b>. An jeder Station ändert sich die <b>Form</b> der Daten.</p>
+    <div class="card"><svg id="pipe" role="img" aria-label="Datenfluss in 6 Stationen"></svg></div>
+    <div class="grid2" style="margin-top:18px">
+      <div class="card">
+        <p class="label-small">Form der Daten an dieser Station</p>
+        <h3 id="a1-title"></h3>
+        <span class="tag" id="a1-where"></span>
+        <div style="margin-top:12px"><pre id="a1-code"></pre></div>
+        <p id="a1-text"></p>
+      </div>
+      <div class="card">
+        <p class="label-small">So zeigst du es live</p>
+        <ol class="show" id="a1-show"></ol>
+        <div class="say"><b>Sagen</b><span id="a1-say"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= AUFGABE 2 ================= -->
+  <section id="a2" role="tabpanel" hidden>
+    <h2>UX-Entscheidung: Leer und Fehler sehen bewusst verschieden aus</h2>
+    <p class="lead">So sehen die drei Zustände auf der Locations-Seite aus (nachgebaut mit den Farben der App).</p>
+    <div class="grid3">
+      <div class="mock">
+        <p class="panel-title">Locations</p>
+        <div class="ls ls--loading"><div class="spinner"></div><p>Loading locations…</p></div>
+        <p class="hint" style="margin-top:10px">Laden: neutral, grau, Spinner</p>
+      </div>
+      <div class="mock">
+        <p class="panel-title">Locations</p>
+        <div class="ls ls--empty"><p class="t">No locations recorded for this case.</p><p class="d">The server responded successfully, but returned no locations.</p></div>
+        <p class="hint" style="margin-top:10px">Leer: ruhig, gestrichelt, kein Button</p>
+      </div>
+      <div class="mock">
+        <p class="panel-title">Locations</p>
+        <div class="ls ls--error"><p class="t">⚠ Locations could not be loaded.</p><p class="d">The server answered with HTTP 500.</p><button type="button">Try again</button></div>
+        <p class="hint" style="margin-top:10px">Fehler: rot, durchgezogen, Aktion</p>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:18px">
+      <div class="card">
+        <h3>Warum so?</h3>
+        <table>
+          <tr><th></th><th>Leer</th><th>Fehler</th></tr>
+          <tr><td>Bedeutung</td><td>„Es gibt nichts, alles ok.“</td><td>„Wir wissen nicht, ob es Daten gibt.“</td></tr>
+          <tr><td>Aussehen</td><td>grau, gestrichelt</td><td>rot, durchgezogen, ⚠</td></tr>
+          <tr><td>Aktion</td><td>keine (Retry bringt nichts)</td><td>„Try again“</td></tr>
+          <tr><td>Screenreader</td><td>normaler Text</td><td><code>role="alert"</code></td></tr>
+        </table>
+        <div class="say"><b>Sagen</b>„Sähen Leer und Fehler gleich aus, würde ein Ermittler einen Serverausfall für ‚keine Orte im Fall‘ halten. Das wäre eine falsche Aussage über den Fall. Ehrlich gesagt: Ich habe das nicht mit Nutzern getestet. Die Farben kommen aus den bestehenden Variablen der App.“</div>
+      </div>
+      <div class="card">
+        <h3>Was ich mit mehr Zeit anders machen würde</h3>
+        <div class="grid2" style="gap:12px">
+          <div>
+            <p class="label-small">Jetzt</p>
+            <div class="ls ls--error" style="padding:16px"><p class="t">⚠ Locations could not be loaded.</p><p class="d">The server answered with HTTP 500.</p></div>
+          </div>
+          <div>
+            <p class="label-small">Besser</p>
+            <div class="ls ls--error" style="padding:16px"><p class="t">⚠ Locations could not be loaded.</p><p class="d">The case server is not responding right now. Please try again in a moment.</p></div>
+          </div>
+          <div>
+            <p class="label-small">Jetzt: Spinner sofort</p>
+            <div class="ls ls--loading" style="padding:16px"><div class="spinner"></div><p>blitzt bei schnellen Antworten kurz auf</p></div>
+          </div>
+          <div>
+            <p class="label-small">Besser: Skeleton-Karten</p>
+            <div><div class="skeleton"></div><div class="skeleton"></div></div>
+          </div>
+        </div>
+        <div class="say"><b>Sagen</b>„‚HTTP 500‘ ist Entwicklersprache. Für Nutzer würde ich einen verständlichen Satz schreiben und den Status nur in der Konsole zeigen. Und weil der lokale Server in Millisekunden antwortet, blitzt der Spinner nur kurz auf. Ich würde ihn erst nach etwa 300 ms zeigen oder graue Platzhalter-Karten verwenden.“</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <p class="label-small">So zeigst du es live</p>
+      <ol class="show">
+        <li>App öffnen: People &amp; Locations → Locations</li>
+        <li>Simulation <b>„Slow (3 s)“</b>: Spinner zeigen</li>
+        <li><b>„Empty response“</b>: gestrichelter Kasten</li>
+        <li><b>„Server error (500)“</b>: roter Kasten, „Try again“ klicken (neue Zeile im Server-Terminal)</li>
+        <li>Zurück zu dieser Seite: „Was ich anders machen würde“</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ================= FRAGE 1 ================= -->
+  <section id="f1" role="tabpanel" hidden>
+    <h2>Was bricht, wenn die Prüfung <code>response.ok</code> still wegfällt?</h2>
+    <p class="lead">Gleiche Anfrage mit „Server error (500)“, links mit Prüfung, rechts ohne. Mit ▶ gehst du beide Seiten gleichzeitig durch.</p>
+    <div class="grid2">
+      <div class="card compare-col ok">
+        <h3><span class="tag" style="background:var(--api)">mit Prüfung</span> so wie jetzt im Code</h3>
+        <div id="f1-ok"></div>
+        <div class="result" id="f1-ok-result"></div>
+      </div>
+      <div class="card compare-col bad">
+        <h3><span class="tag" style="background:var(--app-critical)">ohne Prüfung</span> Zeilen 54–56 auskommentiert</h3>
+        <div id="f1-bad"></div>
+        <div class="result" id="f1-bad-result"></div>
+      </div>
+    </div>
+    <div class="grid2" style="margin-top:18px">
+      <div class="card">
+        <p class="label-small">Die Stelle im Code: src/api/mysteryApi.ts:54</p>
+        <pre>const response = await fetch(url, { signal });
+
+if (!response.ok) {                                   // ← diese 3 Zeilen
+  throw new Error(`The server answered with HTTP ${response.status}.`);
+}
+
+return (await response.json()) as T;</pre>
+        <div class="say"><b>Sagen</b>„fetch wirft bei einem 500 keinen Fehler, nur bei Netzwerkproblemen. Ohne die Prüfung landet das Fehlerobjekt als Orte-Liste im State, map stürzt ab und die ganze Seite wird weiß, weil es keine Error Boundary gibt. Man merkt es am Absturz in der Konsole, nicht an meiner Fehlermeldung, die eigentlich dafür da wäre.“</div>
+      </div>
+      <div class="card">
+        <p class="label-small">So zeigst du es live (vorher einmal üben!)</p>
+        <ol class="show">
+          <li>App: Locations, Simulation <b>„Server error (500)“</b>: roter Kasten (links)</li>
+          <li>VS Code: <code>mysteryApi.ts</code> Zeilen 54–56 markieren, <b>Strg+#</b> (auskommentieren), speichern</li>
+          <li>App: Simulation kurz auf „Normal“ und zurück auf „Server error (500)“: <b>weiße Seite</b></li>
+          <li>DevTools → Console: <code>TypeError: state.data.map is not a function</code></li>
+          <li>Network-Tab: <code>locations?fail=1</code> Status <b>500</b></li>
+          <li><b>Sofort wieder einkommentieren</b> (Strg+#), speichern, Seite neu laden</li>
+        </ol>
+        <p class="hint">Zweites, kürzeres Beispiel: Fehlt <code>controller.abort()</code> im Cleanup, stürzt nichts ab. Man sieht nur manchmal veraltete Daten (Race aus Demo 7). Gerade deshalb ist so ein Fehler schwer zu finden.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FRAGE 2 ================= -->
+  <section id="f2" role="tabpanel" hidden>
+    <h2>Statische Dateien (Ex. 3–5) → echter Server (Ex. 6)</h2>
+    <p class="lead">Was hat der langsame, manchmal fehlerhafte Server erzwungen, und war es vorher schon nötig?</p>
+    <div class="card">
+      <table>
+        <tr><th>Konzept</th><th>Mit statischen Dateien (bis Ex. 5)</th><th>Mit Server (Ex. 6)</th><th>Fazit</th></tr>
+        <tr>
+          <td><b>Ladezustand</b></td>
+          <td>„Loading data…“ in <code>App.tsx</code> gab es schon. Kaum zu sehen, weil die Datei in Millisekunden kam.<br><span class="badge b-visible">schon da</span></td>
+          <td>Spinner pro Ansicht, mit <code>?delay</code> testbar (Demo 6)</td>
+          <td><span class="badge b-hidden">war nötig, unsichtbar</span></td>
+        </tr>
+        <tr>
+          <td><b>Fehler</b></td>
+          <td><code>loadJson</code> prüfte schon <code>response.ok</code> (404 bei falschem Pfad). Die Vanilla-App nicht: Spinner hing für immer.<br><span class="badge b-visible">React: schon da</span> <span class="badge b-missing">Vanilla: fehlte</span></td>
+          <td>Fehlerkasten mit Text und „Try again“, mit <code>?fail=1</code> testbar (Demo 6)</td>
+          <td><span class="badge b-hidden">war nötig, unsichtbar</span></td>
+        </tr>
+        <tr>
+          <td><b>Leer</b></td>
+          <td>Nur bei der Timeline: „No events available.“ Eine Datei mit <code>[]</code> war immer möglich.</td>
+          <td>Eigener Zustand: <code>success</code> + <code>[]</code>, mit <code>?empty=1</code> testbar</td>
+          <td><span class="badge b-hidden">war nötig, unsichtbar</span></td>
+        </tr>
+        <tr>
+          <td><b>Abbrechen beim Verlassen</b></td>
+          <td><code>cancelled</code>-Flag im Cleanup von <code>App.tsx</code> gab es schon.<br><span class="badge b-visible">schon da</span></td>
+          <td><code>AbortController</code> im Hook (Demo 7)</td>
+          <td><span class="badge b-hidden">war nötig, unsichtbar</span></td>
+        </tr>
+        <tr>
+          <td><b>Race Condition</b></td>
+          <td>Gab es nicht: Jede Datei wurde einmal mit fester URL geladen.</td>
+          <td>Mehrere Anfragen mit wechselnden Parametern, falsche Reihenfolge (Demo 7)</td>
+          <td><span class="badge b-new">wirklich neu</span></td>
+        </tr>
+        <tr>
+          <td><b>Hook + API-Schicht</b></td>
+          <td>Ein Ladeort (<code>App.tsx</code>), nichts zu teilen</td>
+          <td>Mehrere Seiten laden selbst (Demo 8, 9)</td>
+          <td><span class="badge b-new">neu, wegen mehr Ladestellen</span></td>
+        </tr>
+      </table>
+    </div>
+    <div class="grid2" style="margin-top:18px">
+      <div class="card">
+        <p class="label-small">Beweis aus Git: App.tsx am Ende von Exercise 5 (Commit d68dfa4)</p>
+        <pre>useEffect(() => {
+  let cancelled = false;          // ← Abbrechen gab es schon
+  ...
+  return () => { cancelled = true; };
+}, []);
+
+data === null ? (
+  &lt;p&gt;Loading data…&lt;/p&gt;           // ← Ladezustand gab es schon
+) : ...</pre>
+        <p class="hint">Live: <code>git show d68dfa4:src/app/App.tsx</code> im Terminal</p>
+      </div>
+      <div class="card">
+        <p class="label-small">Kernaussage</p>
+        <p style="font-size:1.1rem; margin-top:0">Auch eine statische Datei wird mit <code>fetch</code> geladen: <b>asynchron</b> und sie <b>kann scheitern</b>. Der Server hat fast nichts grundsätzlich Neues erzeugt. Er hat die Fälle <b>sichtbar und testbar</b> gemacht.</p>
+        <div class="say"><b>Sagen</b>„Ladezustand, Fehler, Leer und Abbrechen waren konzeptionell schon bei den statischen Dateien nötig. Wir hatten sie sogar teilweise schon, nur hat man sie nie gesehen. Wirklich neu ist nur die Race Condition, weil jetzt mehrere Anfragen mit verschiedenen Parametern gleichzeitig laufen können.“</div>
+      </div>
+    </div>
+  </section>
+
+  <p class="hint">Tasten: ← / → = Schritt, 1–4 = Reiter. Im Diagramm kann man auf eine Station klicken. Direkt öffnen z. B. mit <code>#f1-3</code>.</p>
+</main>
+
+<script>
+// ===================== Aufgabe 1: Datenfluss =====================
+const STATIONS = [
+  {
+    key: "file", color: "var(--file)", name: "JSON-Datei", file: "public/data/locations.json", zone: "disk",
+    title: "① JSON-Datei auf der Festplatte",
+    code: `[\n  {\n    "id": "L01",\n    "name": "Human-Robot Interaction Laboratory",\n    "description": "The main development and testing laboratory for ReMotion.",\n    "contains": ["ReMotion robot", "Operator workstation", ...]\n  },\n  ...\n]`,
+    text: "Reiner Text. Noch kein Programm hat ihn gelesen.",
+    show: ["VS Code: <code>public/data/locations.json</code> öffnen", "Auf den Eintrag <b>L01</b> zeigen"],
+    say: "„Das ist der Ursprung: eine Textdatei mit sechs Orten. Ich verfolge jetzt den ersten, L01.“",
+  },
+  {
+    key: "backend", color: "var(--backend)", name: "Backend", file: "server/index.mjs", zone: "node",
+    title: "② Backend-Endpunkt GET /api/locations",
+    code: `// server/index.mjs\nconst data = JSON.parse(await readFile("locations.json", "utf8"));\nsendJson(response, 200, data);\n\n// HTTP-Antwort:\nHTTP/1.1 200 OK\nContent-Type: application/json; charset=utf-8\n\n[{"id":"L01","name":"Human-Robot Interaction Laboratory",...}, ...]`,
+    text: "Ein eigenes Node-Programm auf Port 3001 liest die Datei und schickt sie als HTTP-Antwort.",
+    show: ["Browser-Tab: <code>http://localhost:3001/api/locations</code>", "Dasselbe JSON wie in der Datei", "Server-Terminal: Zeile <code>GET /api/locations</code>"],
+    say: "„Der Server liest die Datei und schickt sie als HTTP-Antwort. Das ist ein eigenes Programm, nicht Teil von React.“",
+  },
+  {
+    key: "api", color: "var(--api)", name: "API-Schicht", file: "src/api/mysteryApi.ts", zone: "browser",
+    title: "③ API-Schicht: fetch, prüfen, auspacken",
+    code: `const response = await fetch("/api/locations", { signal });\nif (!response.ok) throw new Error(...);   // 200 → ok\nreturn (await response.json()) as Location[];\n\n// Ergebnis: JavaScript-Array\n[{ id: "L01", name: "Human-Robot Interaction Laboratory", ... }, ...]`,
+    text: "Aus dem HTTP-Text wird ein JavaScript-Array. Das ist die einzige Stelle der App mit fetch.",
+    show: ["DevTools → <b>Network</b>, Filter auf <b>Fetch/XHR</b> (nicht „Doc“!)", "Auf Locations die Seite neu laden (F5), ins Filterfeld <code>locations</code> tippen", "Anfrage <code>locations</code> anklicken → <b>Response</b>: L01", "VS Code: <code>mysteryApi.ts</code> Zeile 49 (fetch) und 58 (json)"],
+    say: "„Im Browser holt die API-Schicht die Antwort mit fetch, prüft den Status und macht aus dem Text ein JavaScript-Array.“",
+  },
+  {
+    key: "logic", color: "var(--logic)", name: "Custom Hook", file: "src/hooks/useApi.ts", zone: "browser",
+    title: "④ Custom Hook: im State speichern",
+    code: `const data = await load(controller.signal);\nsetState({ status: "success", data });\n\n// state:\n{\n  status: "success",\n  data: [{ id: "L01", name: "Human-Robot Interaction Laboratory", ... }, ...]\n}`,
+    text: "Der Hook verpackt die Daten in den Ladezustand. Vorher war er „loading“, jetzt „success“.",
+    show: ["VS Code: <code>useApi.ts</code> Zeile 49 (<code>await load</code>) und 53 (<code>setState</code>)", "Konsole: <code>[#…] Antwort angezeigt</code>"],
+    say: "„Der Hook speichert das Array im State als success. Dadurch rendert die Komponente neu.“",
+  },
+  {
+    key: "ui", color: "var(--ui)", name: "Komponente", file: "LocationsPage.tsx", zone: "browser",
+    title: "⑤ Komponente: React-Elemente erzeugen",
+    code: `{state.status === "success" &&\n  state.data.map((location) => (\n    <LocationCard\n      key="L01"\n      name="Human-Robot Interaction Laboratory"\n      description="The main development and testing laboratory for ReMotion."\n    />\n  ))}`,
+    text: "Aus jedem Ort wird eine LocationCard. Das Feld <code>contains</code> wird mitgeschickt, aber nicht angezeigt.",
+    show: ["VS Code: <code>LocationsPage.tsx</code> Zeile 95 (<code>map</code>)", "Kurz <code>LocationCard.tsx</code>: nur <code>name</code> und <code>description</code>"],
+    say: "„Die Komponente macht aus jedem Ort eine Karte. Sie zeigt nur Name und Beschreibung.“",
+  },
+  {
+    key: "screen", color: "var(--screen)", name: "Bildschirm", file: "DOM im Browser", zone: "browser",
+    title: "⑥ Auf dem Bildschirm",
+    code: `<article class="location-card">\n  <h3>Human-Robot Interaction Laboratory</h3>\n  <p>The main development and testing laboratory for ReMotion.</p>\n</article>`,
+    text: "React schreibt echtes HTML ins DOM. Das sieht der Nutzer.",
+    show: ["App: erste Karte zeigen", "Rechtsklick auf den Titel → <b>Untersuchen</b>: <code>&lt;h3&gt;Human-Robot Interaction Laboratory&lt;/h3&gt;</code>"],
+    say: "„Und so landet L01 am Ende als h3 auf dem Bildschirm, sechs Stationen nach der Textdatei.“",
+  },
+];
+
+// ===================== Frage 1: Vergleich =====================
+const F1 = [
+  { ok: "Server antwortet <code>500</code> mit <code>{ error: \"Simulated server error\" }</code>",
+    bad: "Server antwortet <code>500</code> mit <code>{ error: \"Simulated server error\" }</code>" },
+  { ok: "<code>fetch</code> wirft <b>nicht</b> (500 ist für fetch eine normale Antwort)",
+    bad: "<code>fetch</code> wirft <b>nicht</b> (500 ist für fetch eine normale Antwort)" },
+  { ok: "<code>!response.ok</code> → <b>throw new Error(\"…HTTP 500.\")</b>",
+    bad: "keine Prüfung → <code>json()</code> → <code>{ error: … }</code> wird als <code>Location[]</code> zurückgegeben" },
+  { ok: "Hook: <code>catch</code> → <code>setState({ status: \"error\", message })</code>",
+    bad: "Hook: <code>setState({ status: \"success\", data: { error: … } })</code>" },
+  { ok: "Komponente: <code>state.status === \"error\"</code> → <code>&lt;ErrorState&gt;</code>",
+    bad: "Komponente: <code>state.data.map(...)</code> → <b>TypeError</b>, ein Objekt hat kein <code>.map</code>" },
+  { ok: "Ergebnis: roter Kasten mit „Try again“",
+    bad: "Ergebnis: keine Error Boundary → <b>ganze Seite weiß</b>" },
+];
+
+// ===================== Navigation =====================
+const TABS = ["a1", "a2", "f1", "f2"];
+const STEP_COUNT = { a1: STATIONS.length, a2: 0, f1: F1.length, f2: 0 };
+const state = { tab: "a1", step: { a1: 0, f1: 0 } };
+
+function el(name, attrs, text) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+function esc(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+// --- Pipeline-SVG ---
+const W = 1300, BOX_W = 168, BOX_H = 74, GAP = 46, Y = 92;
+const X0 = 30;
+const pipe = document.getElementById("pipe");
+function boxX(i) { return X0 + i * (BOX_W + GAP); }
+
+function drawPipe() {
+  pipe.setAttribute("viewBox", `0 0 ${W} 210`);
+  pipe.innerHTML = "";
+  const defs = el("defs", {});
+  const m = el("marker", { id: "ah", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto" });
+  m.appendChild(el("path", { d: "M0,0 L10,5 L0,10 z", fill: "#9ca3af" }));
+  defs.appendChild(m);
+  const m2 = el("marker", { id: "ah-on", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto" });
+  m2.appendChild(el("path", { d: "M0,0 L10,5 L0,10 z", fill: "#111827" }));
+  defs.appendChild(m2);
+  pipe.appendChild(defs);
+
+  // Zonen
+  const zone = (x1, x2, fill, stroke, label, color) => {
+    pipe.appendChild(el("rect", { x: x1, y: 18, width: x2 - x1, height: 180, rx: 14, fill, stroke, "stroke-dasharray": "6 4" }));
+    pipe.appendChild(el("text", { x: x1 + 14, y: 40, "font-size": 13, "font-weight": 700, fill: color }, label));
+  };
+  zone(boxX(0) - 14, boxX(0) + BOX_W + 14, "#f1f5f9", "#cbd5e1", "FESTPLATTE", "#475569");
+  zone(boxX(1) - 14, boxX(1) + BOX_W + 14, "#fff7ed", "#fed7aa", "NODE :3001", "#c2410c");
+  zone(boxX(2) - 14, boxX(5) + BOX_W + 14, "#eef2ff", "#c7d2fe", "BROWSER (React)", "#4f46e5");
+
+  // Pfeile
+  for (let i = 0; i < STATIONS.length - 1; i++) {
+    const x1 = boxX(i) + BOX_W + 4, x2 = boxX(i + 1) - 4;
+    pipe.appendChild(el("line", { class: "conn", "data-i": i, x1, y1: Y + BOX_H / 2, x2, y2: Y + BOX_H / 2, "stroke-width": 2.5 }));
+  }
+
+  STATIONS.forEach((s, i) => {
+    const g = el("g", { class: "clickable station", "data-i": i });
+    g.appendChild(el("rect", { class: "box", x: boxX(i), y: Y, width: BOX_W, height: BOX_H, rx: 10, fill: "#fff", "stroke-width": 2 }));
+    g.appendChild(el("text", { class: "num", x: boxX(i) + 14, y: Y + 22, "font-size": 13, "font-weight": 700 }, String(i + 1)));
+    g.appendChild(el("text", { class: "name", x: boxX(i) + BOX_W / 2, y: Y + 38, "text-anchor": "middle", "font-size": 15, "font-weight": 700 }, s.name));
+    g.appendChild(el("text", { class: "file", x: boxX(i) + BOX_W / 2, y: Y + 58, "text-anchor": "middle", "font-size": 11, fill: "#6b7280" }, s.file));
+    g.addEventListener("click", () => { state.step.a1 = i; render(); });
+    pipe.appendChild(g);
+  });
+  pipe.appendChild(el("text", { x: W / 2, y: 190, "text-anchor": "middle", "font-size": 12, fill: "#6b7280" }, "Daten fließen von links nach rechts. Die Anfrage geht vorher den umgekehrten Weg (UI → Hook → API → Backend)."));
+}
+
+function renderA1() {
+  const cur = state.step.a1;
+  pipe.querySelectorAll(".station").forEach((g) => {
+    const i = Number(g.dataset.i);
+    const s = STATIONS[i];
+    const now = i === cur, done = i < cur;
+    g.querySelector(".box").setAttribute("stroke", now || done ? s.color : "#e5e7eb");
+    g.querySelector(".box").setAttribute("stroke-width", now ? 4 : 2);
+    g.querySelector(".box").setAttribute("fill", now ? "#fff" : done ? "#fff" : "#fafafa");
+    g.querySelector(".num").setAttribute("fill", now || done ? s.color : "#d1d5db");
+    g.querySelector(".name").setAttribute("fill", now ? "#111827" : done ? "#374151" : "#c4c9d1");
+  });
+  pipe.querySelectorAll(".conn").forEach((line) => {
+    const i = Number(line.dataset.i);
+    const active = i < cur;
+    line.setAttribute("stroke", active ? "#111827" : "#d1d5db");
+    line.setAttribute("marker-end", active ? "url(#ah-on)" : "url(#ah)");
+  });
+  const s = STATIONS[cur];
+  document.getElementById("a1-title").textContent = s.title;
+  const where = document.getElementById("a1-where");
+  where.textContent = s.file;
+  where.style.background = s.color;
+  document.getElementById("a1-code").textContent = s.code;
+  document.getElementById("a1-text").innerHTML = s.text;
+  document.getElementById("a1-show").innerHTML = s.show.map((x) => `<li>${x}</li>`).join("");
+  document.getElementById("a1-say").textContent = s.say;
+}
+
+function renderF1() {
+  const cur = state.step.f1;
+  const build = (key) => F1.map((row, i) => {
+    const cls = i === cur ? "now" : i < cur ? "done" : "";
+    return `<div class="flow-step ${cls}"><span class="n">${i + 1}</span><span>${row[key]}</span></div>`;
+  }).join("");
+  document.getElementById("f1-ok").innerHTML = build("ok");
+  document.getElementById("f1-bad").innerHTML = build("bad");
+  const last = cur === F1.length - 1;
+  document.getElementById("f1-ok-result").innerHTML = last
+    ? `<div class="mock"><p class="panel-title">Locations</p><div class="ls ls--error" style="padding:16px"><p class="t">⚠ Locations could not be loaded.</p><p class="d">The server answered with HTTP 500.</p><button type="button">Try again</button></div></div>`
+    : "";
+  document.getElementById("f1-bad-result").innerHTML = last
+    ? `<div class="whitescreen">(leere weiße Seite, auch Navigation weg)</div><div class="console">✖ Uncaught TypeError: state.data.map is not a function</div>`
+    : "";
+}
+
+function render() {
+  for (const t of TABS) {
+    document.getElementById(t).hidden = t !== state.tab;
+    document.querySelector(`[data-tab="${t}"]`).setAttribute("aria-selected", String(t === state.tab));
+  }
+  const count = STEP_COUNT[state.tab];
+  const prev = document.getElementById("prev"), next = document.getElementById("next");
+  if (count === 0) {
+    document.getElementById("counter").textContent = "";
+    prev.disabled = true; next.disabled = true;
+  } else {
+    const s = state.step[state.tab];
+    document.getElementById("counter").textContent = `${s + 1} / ${count}`;
+    prev.disabled = s === 0; next.disabled = s === count - 1;
+  }
+  if (state.tab === "a1") renderA1();
+  if (state.tab === "f1") renderF1();
+}
+
+function move(delta) {
+  const count = STEP_COUNT[state.tab];
+  if (count === 0) return;
+  state.step[state.tab] = Math.max(0, Math.min(count - 1, state.step[state.tab] + delta));
+  render();
+}
+
+document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { state.tab = b.dataset.tab; render(); }));
+document.getElementById("prev").addEventListener("click", () => move(-1));
+document.getElementById("next").addEventListener("click", () => move(1));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); move(1); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); move(-1); }
+  if (["1", "2", "3", "4"].includes(e.key)) { state.tab = TABS[Number(e.key) - 1]; render(); }
+});
+
+// Start per URL, z. B. #f1-3 oder #a2
+const match = location.hash.match(/^#(a1|a2|f1|f2)(?:-(\d+))?$/);
+if (match) {
+  state.tab = match[1];
+  if (match[2] && STEP_COUNT[state.tab]) state.step[state.tab] = Math.min(STEP_COUNT[state.tab], Number(match[2])) - 1;
+}
+drawPipe();
+render();
+</script>
+</body>
+</html>
